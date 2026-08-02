@@ -1,0 +1,284 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  user
+  support
+  admin
+  super_admin
+}
+
+enum UserStatus {
+  active
+  suspended
+}
+
+enum SubStatus {
+  active
+  canceled
+  past_due
+  incomplete
+}
+
+enum BillingInterval {
+  month
+  year
+}
+
+enum ToolSource {
+  youtube
+  tiktok
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String?
+  avatarUrl       String?
+  emailVerifiedAt DateTime?
+  googleId        String?   @unique
+  role            Role      @default(user)
+  status          UserStatus @default(active)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  subscriptions    Subscription[]
+  usageDaily       UsageDaily[]
+  tagGenerations   TagGeneration[]
+  keywordSearches  KeywordSearch[]
+  savedKeywords    SavedKeyword[]
+  keywordLists     KeywordList[]
+  rankChecks       RankCheck[]
+  auditLogs        AuditLog[]
+  blogPosts        BlogPost[]
+  notifications    Notification[]
+
+  @@map("users")
+}
+
+model Plan {
+  id                     String   @id @default(cuid())
+  name                   String
+  slug                   String   @unique
+  priceMonthly           Int      // in cents
+  priceYearly            Int      // in cents
+  stripePriceIdMonthly   String?
+  stripePriceIdYearly    String?
+  tagGenLimit            Int
+  keywordSearchLimit     Int
+  rankCheckLimit         Int
+  featuresJson           Json     @default("{}")
+  isActive               Boolean  @default(true)
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                   String          @id @default(cuid())
+  userId               String
+  user                 User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?         @unique
+  planId               String
+  plan                 Plan            @relation(fields: [planId], references: [id])
+  status               SubStatus       @default(active)
+  billingInterval      BillingInterval @default(month)
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime        @default(now())
+
+  @@index([userId])
+  @@map("subscriptions")
+}
+
+model UsageDaily {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date                DateTime @db.Date
+  tagGenCount         Int      @default(0)
+  keywordSearchCount  Int      @default(0)
+  rankCheckCount      Int      @default(0)
+
+  @@unique([userId, date])
+  @@map("usage_daily")
+}
+
+model TagGeneration {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  query     String
+  source    ToolSource @default(youtube)
+  tagsJson  Json
+  createdAt DateTime   @default(now())
+
+  @@index([userId])
+  @@map("tag_generations")
+}
+
+model KeywordSearch {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  keyword         String
+  volume          Int?
+  difficulty      Int?
+  competition     Float?
+  viabilityScore  Float?
+  relatedJson     Json     @default("[]")
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@map("keyword_searches")
+}
+
+model KeywordList {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime       @default(now())
+  keywords  SavedKeyword[]
+
+  @@map("keyword_lists")
+}
+
+model SavedKeyword {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  keyword     String
+  listId      String?
+  list        KeywordList? @relation(fields: [listId], references: [id], onDelete: SetNull)
+  metricsJson Json         @default("{}")
+  createdAt   DateTime     @default(now())
+
+  @@map("saved_keywords")
+}
+
+model RankCheck {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoId   String
+  keyword   String
+  position  Int?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("rank_checks")
+}
+
+model BlogPost {
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  bodyMd      String
+  coverUrl    String?
+  status      String    @default("draft") // draft | published
+  publishedAt DateTime?
+  authorId    String?
+  author      User?     @relation(fields: [authorId], references: [id])
+
+  @@map("blog_posts")
+}
+
+model PageContent {
+  id          String @id @default(cuid())
+  key         String @unique // e.g. "landing", "legal.terms"
+  contentJson Json
+
+  @@map("pages_content")
+}
+
+model Faq {
+  id        String  @id @default(cuid())
+  question  String
+  answer    String
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  @@map("faqs")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  admin      User     @relation(fields: [adminId], references: [id])
+  action     String
+  targetType String
+  targetId   String
+  metaJson   Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model Announcement {
+  id        String    @id @default(cuid())
+  title     String
+  body      String
+  level     String    @default("info") // info | warning | critical
+  startsAt  DateTime?
+  endsAt    DateTime?
+  isActive  Boolean   @default(true)
+
+  @@map("announcements")
+}
+
+enum SettingCategory {
+  youtube
+  stripe
+  google_oauth
+  redis
+  adsense
+  admin
+  email
+  analytics
+}
+
+model SystemSetting {
+  key         String          @id // e.g. "YOUTUBE_API_KEY"
+  value       String? // stored as plain text — see admin/config page for the security caveat
+  category    SettingCategory
+  label       String
+  isSecret    Boolean         @default(true)
+  description String?
+  updatedAt   DateTime        @updatedAt
+  updatedBy   String?
+
+  @@map("system_settings")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String?
+  page      String?
+  message   String
+  emailSent Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("feedback")
+}
