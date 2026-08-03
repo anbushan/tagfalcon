@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useToast } from "@/components/Toast";
+import { trackEvent } from "@/lib/analytics";
 
 export default function RemoveKeywordButton({ keywordId }: { keywordId: string }) {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function RemoveKeywordButton({ keywordId }: { keywordId: string }
       showToast("Couldn't remove keyword.", "error");
       return;
     }
+    trackEvent("remove_keyword", { keywordId });
     showToast("Keyword removed.");
     router.refresh();
   }

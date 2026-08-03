@@ -9,12 +9,38 @@ type Plan = {
   id: string;
   name: string;
   slug: string;
+  description: string | null;
   priceMonthly: number;
   priceYearly: number;
   tagGenLimit: number;
   keywordSearchLimit: number;
   rankCheckLimit: number;
 };
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
+  }
+}
+
+const CHECKOUT_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+
+function loadRazorpayScript(): Promise<boolean> {
+  if (window.Razorpay) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const existing = document.querySelector(`script[src="${CHECKOUT_SCRIPT_SRC}"]`);
+    if (existing) {
+      existing.addEventListener("load", () => resolve(true));
+      existing.addEventListener("error", () => resolve(false));
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = CHECKOUT_SCRIPT_SRC;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 export default function PricingCards({ plans }: { plans: Plan[] }) {
   const { data: session } = useSession();
@@ -51,15 +77,57 @@ export default function PricingCards({ plans }: { plans: Plan[] }) {
       const data = await res.json();
       if (!res.ok) {
         const message =
-          data.error === "STRIPE_PRICE_NOT_CONFIGURED"
-            ? "This plan isn't connected to a Stripe price yet — set the price IDs in Configuration and re-seed."
+          data.error === "RAZORPAY_NOT_CONFIGURED"
+            ? "Payments aren't configured yet — set the Razorpay keys in Configuration."
+            : data.error === "RAZORPAY_API_ERROR"
+            ? `Couldn't start checkout: ${data.detail || "unknown error"}.`
             : "Couldn't start checkout. Try again.";
         setError(message);
         showToast(message, "error");
+        setLoadingSlug(null);
         return;
       }
-      window.location.href = data.url;
-    } finally {
+
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded || !window.Razorpay) {
+        const message = "Couldn't load the payment widget. Check your connection and try again.";
+        setError(message);
+        showToast(message, "error");
+        setLoadingSlug(null);
+        return;
+      }
+
+      const razorpay = new window.Razorpay({
+        key: data.keyId,
+        order_id: data.orderId,
+        amount: data.amount,
+        currency: data.currency,
+        name: "TagFalcon",
+        description: `${data.planName} — ${interval === "year" ? "yearly" : "monthly"}`,
+        prefill: { email: session.user?.email || undefined },
+        handler: async (response: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) => {
+          const verifyRes = await fetch("/api/billing/razorpay/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(response),
+          });
+          if (verifyRes.ok) {
+            window.location.href = "/app/billing?checkout=success";
+          } else {
+            showToast("Payment received but activation failed — contact support.", "error");
+          }
+        },
+        modal: {
+          ondismiss: () => setLoadingSlug(null),
+        },
+      });
+      razorpay.open();
+    } catch {
+      setError("Couldn't start checkout. Try again.");
       setLoadingSlug(null);
     }
   }
@@ -91,20 +159,16 @@ export default function PricingCards({ plans }: { plans: Plan[] }) {
           const isFree = plan.slug === "free";
           return (
             <div key={plan.id} className="rounded-yt border border-gray-200 p-6 dark:border-yt-border">
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-semibold">{plan.name}</h2>
-                {!isFree && (
-                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:bg-yt-dark-3 dark:text-gray-400">
-                    Coming soon
-                  </span>
-                )}
-              </div>
+              <h2 className="text-xl font-semibold">{plan.name}</h2>
               <p className="mt-2 text-3xl font-bold">
-                ${(price / 100).toFixed(0)}
+                ₹{(price / 100).toFixed(0)}
                 <span className="text-base font-normal text-gray-500 dark:text-gray-400">/mo</span>
               </p>
               {interval === "year" && plan.priceMonthly > 0 && (
-                <p className="text-xs text-gray-500 dark:text-gray-400">billed ${(plan.priceYearly / 100).toFixed(0)}/yr</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">billed ₹{(plan.priceYearly / 100).toFixed(0)}/yr</p>
+              )}
+              {plan.description && (
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{plan.description}</p>
               )}
               <ul className="mt-4 space-y-1 text-sm text-gray-600 dark:text-gray-400">
                 <li>{plan.tagGenLimit} tag generations/day</li>
@@ -112,12 +176,11 @@ export default function PricingCards({ plans }: { plans: Plan[] }) {
                 <li>{plan.rankCheckLimit} rank checks/day</li>
               </ul>
               <button
-                onClick={() => isFree && choosePlan(plan)}
-                disabled={!isFree || loadingSlug === plan.slug}
-                title={!isFree ? "Paid plans are coming soon" : undefined}
-                className="mt-6 w-full rounded-full bg-yt-red py-2 font-medium text-white hover:bg-yt-red-dark disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 dark:disabled:bg-yt-dark-3 dark:disabled:text-gray-500"
+                onClick={() => choosePlan(plan)}
+                disabled={loadingSlug === plan.slug}
+                className="mt-6 w-full rounded-full bg-yt-red py-2 font-medium text-white hover:bg-yt-red-dark disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {!isFree ? "Coming soon" : loadingSlug === plan.slug ? "Redirecting..." : `Choose ${plan.name}`}
+                {loadingSlug === plan.slug ? "Redirecting..." : isFree ? `Choose ${plan.name}` : `Get ${plan.name}`}
               </button>
             </div>
           );

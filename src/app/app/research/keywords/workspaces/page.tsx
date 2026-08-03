@@ -6,6 +6,7 @@ import AdSlot from "@/components/AdSlot";
 import { SkeletonBar } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
 import { useLanguage } from "@/components/LanguageProvider";
+import { trackEvent } from "@/lib/analytics";
 
 type KeywordList = {
   id: string;
@@ -48,6 +49,7 @@ export default function KeywordWorkspacesPage() {
       showToast("Couldn't create workspace.", "error");
       return;
     }
+    trackEvent("create_workspace", { name });
     showToast(`Workspace "${name}" created.`);
     setName("");
     loadLists();

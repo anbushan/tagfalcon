@@ -47,15 +47,20 @@ async function findRank(videoId: string, keyword: string, apiKey: string): Promi
   return null;
 }
 
-function deriveCandidateKeywords(title: string, tags: string[]): string[] {
-  const candidates = [title, ...tags];
+type Candidate = { keyword: string; source: "title" | "tag" };
+
+function deriveCandidateKeywords(title: string, tags: string[]): Candidate[] {
+  const candidates: Candidate[] = [
+    { keyword: title, source: "title" },
+    ...tags.map((t) => ({ keyword: t, source: "tag" as const })),
+  ];
   const seen = new Set<string>();
-  const out: string[] = [];
+  const out: Candidate[] = [];
   for (const c of candidates) {
-    const norm = c.trim();
+    const norm = c.keyword.trim();
     if (!norm || seen.has(norm.toLowerCase())) continue;
     seen.add(norm.toLowerCase());
-    out.push(norm);
+    out.push({ keyword: norm, source: c.source });
     if (out.length >= MAX_CANDIDATES) break;
   }
   return out;
@@ -101,14 +106,15 @@ export async function POST(req: NextRequest) {
 
   const candidates = deriveCandidateKeywords(info.title, info.tags);
   const results = await Promise.all(
-    candidates.map(async (keyword) => ({
-      keyword,
-      position: await findRank(videoId, keyword, apiKey),
+    candidates.map(async (c) => ({
+      keyword: c.keyword,
+      source: c.source,
+      position: await findRank(videoId, c.keyword, apiKey),
     }))
   );
 
   await prisma.rankCheck.createMany({
-    data: results.map((r) => ({ userId, videoId, keyword: r.keyword, position: r.position })),
+    data: results.map((r) => ({ userId, videoId, keyword: r.keyword, source: r.source, position: r.position })),
   });
 
   return NextResponse.json({ videoId, videoTitle: info.title, results });

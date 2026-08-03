@@ -1,12 +1,43 @@
 import { prisma } from "@/lib/prisma";
+import { findActiveSubscription } from "@/lib/subscriptions";
 
-type ToolKey = "tagGenCount" | "keywordSearchCount" | "rankCheckCount";
-type LimitKey = "tagGenLimit" | "keywordSearchLimit" | "rankCheckLimit";
+type ToolKey =
+  | "tagGenCount"
+  | "keywordSearchCount"
+  | "rankCheckCount"
+  | "revenueReportCount"
+  | "trendsResearchCount"
+  | "videoOptimizationCount"
+  | "channelAuditCount"
+  | "hashtagGenCount"
+  | "uploadTimeCount"
+  | "channelComparisonCount"
+  | "breakoutVideoCount";
+type LimitKey =
+  | "tagGenLimit"
+  | "keywordSearchLimit"
+  | "rankCheckLimit"
+  | "revenueReportLimit"
+  | "trendsResearchLimit"
+  | "videoOptimizationLimit"
+  | "channelAuditLimit"
+  | "hashtagGenLimit"
+  | "uploadTimeLimit"
+  | "channelComparisonLimit"
+  | "breakoutVideoLimit";
 
 const TOOL_TO_LIMIT: Record<ToolKey, LimitKey> = {
   tagGenCount: "tagGenLimit",
   keywordSearchCount: "keywordSearchLimit",
   rankCheckCount: "rankCheckLimit",
+  revenueReportCount: "revenueReportLimit",
+  trendsResearchCount: "trendsResearchLimit",
+  videoOptimizationCount: "videoOptimizationLimit",
+  channelAuditCount: "channelAuditLimit",
+  hashtagGenCount: "hashtagGenLimit",
+  uploadTimeCount: "uploadTimeLimit",
+  channelComparisonCount: "channelComparisonLimit",
+  breakoutVideoCount: "breakoutVideoLimit",
 };
 
 function todayUTC(): Date {
@@ -22,11 +53,7 @@ function todayUTC(): Date {
 export async function checkAndIncrementUsage(userId: string, tool: ToolKey) {
   const date = todayUTC();
 
-  const subscription = await prisma.subscription.findFirst({
-    where: { userId, status: "active" },
-    include: { plan: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const subscription = await findActiveSubscription(userId);
 
   const plan =
     subscription?.plan ??

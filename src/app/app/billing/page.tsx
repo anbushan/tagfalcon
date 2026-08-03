@@ -1,18 +1,16 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { findActiveSubscription } from "@/lib/subscriptions";
 import { BillingTitle, BillingPlanCard, BillingUsageGrid } from "@/components/BillingChrome";
+import AdSlot from "@/components/AdSlot";
 
 export default async function BillingPage() {
   const session = await getServerSession(authOptions);
   const userId = (session!.user as any).id as string;
 
   const [activeSub, freePlan] = await Promise.all([
-    prisma.subscription.findFirst({
-      where: { userId, status: "active" },
-      include: { plan: true },
-      orderBy: { createdAt: "desc" },
-    }),
+    findActiveSubscription(userId),
     prisma.plan.findUnique({ where: { slug: "free" } }),
   ]);
 
@@ -39,13 +37,22 @@ export default async function BillingPage() {
       />
 
       <BillingUsageGrid
-        tagsToday={usage?.tagGenCount ?? 0}
-        tagsLimit={plan?.tagGenLimit ?? "—"}
-        keywordSearches={usage?.keywordSearchCount ?? 0}
-        keywordLimit={plan?.keywordSearchLimit ?? "—"}
-        rankChecks={usage?.rankCheckCount ?? 0}
-        rankLimit={plan?.rankCheckLimit ?? "—"}
+        metrics={[
+          { key: "tagsToday", used: usage?.tagGenCount ?? 0, limit: plan?.tagGenLimit ?? "—" },
+          { key: "keywordSearches", used: usage?.keywordSearchCount ?? 0, limit: plan?.keywordSearchLimit ?? "—" },
+          { key: "rankChecks", used: usage?.rankCheckCount ?? 0, limit: plan?.rankCheckLimit ?? "—" },
+          { key: "revenueReports", used: usage?.revenueReportCount ?? 0, limit: plan?.revenueReportLimit ?? "—" },
+          { key: "trendsResearch", used: usage?.trendsResearchCount ?? 0, limit: plan?.trendsResearchLimit ?? "—" },
+          { key: "videoOptimizations", used: usage?.videoOptimizationCount ?? 0, limit: plan?.videoOptimizationLimit ?? "—" },
+          { key: "channelAudits", used: usage?.channelAuditCount ?? 0, limit: plan?.channelAuditLimit ?? "—" },
+          { key: "hashtagGenerations", used: usage?.hashtagGenCount ?? 0, limit: plan?.hashtagGenLimit ?? "—" },
+          { key: "uploadTimeChecks", used: usage?.uploadTimeCount ?? 0, limit: plan?.uploadTimeLimit ?? "—" },
+          { key: "channelComparisons", used: usage?.channelComparisonCount ?? 0, limit: plan?.channelComparisonLimit ?? "—" },
+          { key: "breakoutChecks", used: usage?.breakoutVideoCount ?? 0, limit: plan?.breakoutVideoLimit ?? "—" },
+        ]}
       />
+
+      <AdSlot slot="6666666666" />
     </main>
   );
 }

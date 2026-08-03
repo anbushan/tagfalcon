@@ -55,6 +55,14 @@ model User {
   savedKeywords    SavedKeyword[]
   keywordLists     KeywordList[]
   rankChecks       RankCheck[]
+  revenueReports   RevenueReport[]
+  trendSearches    TrendSearch[]
+  videoOptimizations VideoOptimization[]
+  channelAudits    ChannelAudit[]
+  hashtagGenerations HashtagGeneration[]
+  bestUploadTimes    BestUploadTime[]
+  channelComparisons ChannelComparison[]
+  breakoutVideos     BreakoutVideo[]
   auditLogs        AuditLog[]
   blogPosts        BlogPost[]
   notifications    Notification[]
@@ -66,13 +74,20 @@ model Plan {
   id                     String   @id @default(cuid())
   name                   String
   slug                   String   @unique
-  priceMonthly           Int      // in cents
-  priceYearly            Int      // in cents
-  stripePriceIdMonthly   String?
-  stripePriceIdYearly    String?
+  description            String?
+  priceMonthly           Int      // in paise (smallest INR unit)
+  priceYearly            Int      // in paise (smallest INR unit)
   tagGenLimit            Int
   keywordSearchLimit     Int
   rankCheckLimit         Int
+  revenueReportLimit     Int      @default(5)
+  trendsResearchLimit    Int      @default(20)
+  videoOptimizationLimit Int      @default(20)
+  channelAuditLimit      Int      @default(10)
+  hashtagGenLimit        Int      @default(20)
+  uploadTimeLimit        Int      @default(10)
+  channelComparisonLimit Int      @default(10)
+  breakoutVideoLimit     Int      @default(10)
   featuresJson           Json     @default("{}")
   isActive               Boolean  @default(true)
 
@@ -85,8 +100,9 @@ model Subscription {
   id                   String          @id @default(cuid())
   userId               String
   user                 User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stripeCustomerId     String?
-  stripeSubscriptionId String?         @unique
+  razorpayOrderId      String?         @unique
+  razorpayPaymentId    String?
+  amountPaise          Int?
   planId               String
   plan                 Plan            @relation(fields: [planId], references: [id])
   status               SubStatus       @default(active)
@@ -106,6 +122,14 @@ model UsageDaily {
   tagGenCount         Int      @default(0)
   keywordSearchCount  Int      @default(0)
   rankCheckCount      Int      @default(0)
+  revenueReportCount  Int      @default(0)
+  trendsResearchCount    Int   @default(0)
+  videoOptimizationCount Int   @default(0)
+  channelAuditCount      Int   @default(0)
+  hashtagGenCount        Int   @default(0)
+  uploadTimeCount        Int   @default(0)
+  channelComparisonCount Int   @default(0)
+  breakoutVideoCount     Int   @default(0)
 
   @@unique([userId, date])
   @@map("usage_daily")
@@ -170,11 +194,146 @@ model RankCheck {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   videoId   String
   keyword   String
+  source    String?
   position  Int?
   createdAt DateTime @default(now())
 
   @@index([userId])
   @@map("rank_checks")
+}
+
+model RevenueReport {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channelId         String
+  channelTitle      String
+  channelThumbnail  String?
+  channelStartDate  DateTime?
+  channelDescription String?
+  channelCountry    String?
+  channelCustomUrl  String?
+  contactEmail      String?
+  socialLinksJson   Json     @default("[]")
+  category          String?
+  subscriberCount   Float?
+  totalViewCount    Float?
+  videoCount        Int?
+  avgViewsRecent    Float?
+  estMonthlyViews   Float?
+  estRevenueLowUsd  Int?
+  estRevenueHighUsd Int?
+  recentVideosJson  Json     @default("[]")
+  createdAt         DateTime @default(now())
+
+  @@index([userId])
+  @@map("revenue_reports")
+}
+
+model TrendSearch {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  region       String
+  categoryId   String?
+  categoryName String?
+  language     String?
+  resultsJson  Json     @default("[]")
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@map("trend_searches")
+}
+
+model VideoOptimization {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoId        String
+  videoTitle     String
+  videoThumbnail String?
+  score          Int
+  checklistJson  Json     @default("[]")
+  detailsJson    Json     @default("{}")
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@map("video_optimizations")
+}
+
+model ChannelAudit {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channelId        String
+  channelTitle     String
+  channelThumbnail String?
+  score            Int
+  metricsJson      Json     @default("{}")
+  findingsJson     Json     @default("[]")
+  recentVideosJson Json     @default("[]")
+  createdAt        DateTime @default(now())
+
+  @@index([userId])
+  @@map("channel_audits")
+}
+
+model HashtagGeneration {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  query        String
+  hashtagsJson Json     @default("[]")
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@map("hashtag_generations")
+}
+
+model BestUploadTime {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channelId          String
+  channelTitle       String
+  channelThumbnail   String?
+  bestDay            String?
+  bestHourUtc        Int?
+  breakdownJson      Json     @default("[]")
+  createdAt          DateTime @default(now())
+
+  @@index([userId])
+  @@map("best_upload_times")
+}
+
+model ChannelComparison {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channelAId     String
+  channelATitle  String
+  channelBId     String
+  channelBTitle  String
+  comparisonJson Json     @default("{}")
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@map("channel_comparisons")
+}
+
+model BreakoutVideo {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channelId        String
+  channelTitle     String
+  channelThumbnail String?
+  avgViews         Float?
+  breakoutsJson    Json     @default("[]")
+  createdAt        DateTime @default(now())
+
+  @@index([userId])
+  @@map("breakout_videos")
 }
 
 model BlogPost {
@@ -236,7 +395,7 @@ model Announcement {
 
 enum SettingCategory {
   youtube
-  stripe
+  razorpay
   google_oauth
   redis
   adsense

@@ -2,50 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUserId } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { cached } from "@/lib/redis";
-import { getSetting } from "@/lib/settings";
 import { checkAndIncrementUsage } from "@/lib/usage-limits";
+import { fetchYouTubeSuggestions, fetchYouTubeSearchTags } from "@/lib/youtube-suggestions";
 import { z } from "zod";
 
 const bodySchema = z.object({
   query: z.string().min(2).max(100),
   source: z.enum(["youtube", "tiktok"]).default("youtube"),
 });
-
-async function fetchYouTubeSuggestions(query: string): Promise<string[]> {
-  // Google's public suggest endpoint used for autocomplete-style expansion.
-  const url = `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(
-    query
-  )}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Failed to fetch YouTube suggestions");
-  const data = await res.json();
-  return (data[1] as string[]) || [];
-}
-
-async function fetchYouTubeSearchTags(query: string): Promise<string[]> {
-  const apiKey = await getSetting("YOUTUBE_API_KEY");
-  if (!apiKey) return [];
-
-  const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(
-    query
-  )}&key=${apiKey}`;
-  const searchRes = await fetch(searchUrl);
-  if (!searchRes.ok) return [];
-  const searchData = await searchRes.json();
-  const videoIds = (searchData.items || []).map((i: any) => i.id.videoId).filter(Boolean).join(",");
-  if (!videoIds) return [];
-
-  const videosUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoIds}&key=${apiKey}`;
-  const videosRes = await fetch(videosUrl);
-  if (!videosRes.ok) return [];
-  const videosData = await videosRes.json();
-
-  const allTags: string[] = [];
-  for (const item of videosData.items || []) {
-    if (item.snippet?.tags) allTags.push(...item.snippet.tags);
-  }
-  return allTags;
-}
 
 function rankAndTrimTags(seed: string, suggestions: string[], videoTags: string[]) {
   const freq = new Map<string, number>();

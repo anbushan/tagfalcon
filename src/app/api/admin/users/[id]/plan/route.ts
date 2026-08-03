@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const plan = await prisma.plan.findUnique({ where: { slug: parsed.data.planSlug } });
   if (!plan) return NextResponse.json({ error: "PLAN_NOT_FOUND" }, { status: 404 });
 
-  // Cancel any existing active subscriptions (comped or Stripe-backed) before
+  // Cancel any existing active subscriptions (comped or Razorpay-backed) before
   // granting the new one, so a user never shows two "active" plans at once.
   await prisma.subscription.updateMany({
     where: { userId: target.id, status: "active" },
@@ -36,9 +36,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         planId: plan.id,
         status: "active",
         billingInterval: "month",
-        // No stripeCustomerId/stripeSubscriptionId — this is a manual comp,
-        // not billed. If they later pay via Stripe, the webhook will sync a
-        // real subscription and this comped one should be superseded.
+        // No razorpayOrderId/razorpayPaymentId and no currentPeriodEnd — this
+        // is a manual, non-expiring comp, not a billed purchase. If they
+        // later pay via Razorpay, that purchase should supersede this one.
       },
     });
   }

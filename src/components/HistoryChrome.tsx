@@ -3,7 +3,19 @@
 import Link from "next/link";
 import { useLanguage } from "@/components/LanguageProvider";
 
-const TAB_KEYS = ["tags", "keywords", "ranks"] as const;
+const TAB_KEYS = [
+  "tags",
+  "keywords",
+  "ranks",
+  "revenue",
+  "trends",
+  "optimization",
+  "audit",
+  "hashtags",
+  "uploadTime",
+  "compare",
+  "breakout",
+] as const;
 
 export function HistoryTitle() {
   const { t } = useLanguage();
@@ -13,7 +25,7 @@ export function HistoryTitle() {
 export function HistoryTabs({ activeTab }: { activeTab: string }) {
   const { t } = useLanguage();
   return (
-    <div className="mt-6 flex gap-2 border-b">
+    <div className="mt-6 flex flex-wrap gap-2 border-b">
       {TAB_KEYS.map((key) => (
         <Link
           key={key}

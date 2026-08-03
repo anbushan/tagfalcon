@@ -17,7 +17,7 @@ type Setting = {
 
 const CATEGORY_LABELS: Record<string, string> = {
   youtube: "YouTube Data API",
-  stripe: "Stripe",
+  razorpay: "Razorpay",
   google_oauth: "Google OAuth",
   redis: "Upstash Redis",
   adsense: "Google AdSense",

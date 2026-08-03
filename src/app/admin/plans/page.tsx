@@ -51,7 +51,7 @@ export default async function AdminPlansPage({
                 <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">Inactive</span>
               )}
             </div>
-            <p className="mt-1 text-lg font-semibold">${(plan.priceMonthly / 100).toFixed(0)}/mo</p>
+            <p className="mt-1 text-lg font-semibold">₹{(plan.priceMonthly / 100).toFixed(0)}/mo</p>
             <ul className="mt-3 space-y-1 text-sm text-gray-600">
               <li>{plan.tagGenLimit} tag generations/day</li>
               <li>{plan.keywordSearchLimit} keyword searches/day</li>
@@ -64,11 +64,7 @@ export default async function AdminPlansPage({
         )}
       </div>
 
-      <p className="mt-6 text-xs text-gray-400">
-        Editing plans here (create/edit limits, toggle active, manage Stripe price IDs) isn't wired up
-        yet — this is a read view for now. Changes currently go through{" "}
-        <code className="rounded bg-gray-100 px-1">prisma/seed.ts</code> or Prisma Studio.
-      </p>
+      <p className="mt-6 text-xs text-gray-400">Click a plan to edit its title, description, price, and limits.</p>
     </main>
   );
 }

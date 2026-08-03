@@ -8,6 +8,18 @@ import { z } from "zod";
 
 const bodySchema = z.object({ keyword: z.string().min(2).max(100) });
 
+export type SerpResult = {
+  videoId: string;
+  title: string;
+  channelTitle: string;
+  thumbnail: string;
+  publishedAt: string;
+  tags: string[];
+  views: number;
+  likes: number;
+  comments: number;
+};
+
 async function fetchRelatedKeywords(keyword: string): Promise<string[]> {
   const url = `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(
     keyword
@@ -28,6 +40,48 @@ async function fetchSearchResultCount(keyword: string): Promise<number> {
   if (!res.ok) return 0;
   const data = await res.json();
   return data.pageInfo?.totalResults ?? 0;
+}
+
+/**
+ * Top-ranking videos for the keyword, enriched with tags and engagement
+ * stats — one search.list call to get ranking order, one batched videos.list
+ * call to fill in the details search results don't carry (tags, statistics).
+ */
+async function fetchSerp(keyword: string): Promise<SerpResult[]> {
+  const apiKey = await getSetting("YOUTUBE_API_KEY");
+  if (!apiKey) return [];
+
+  const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(
+    keyword
+  )}&key=${apiKey}`;
+  const searchRes = await fetch(searchUrl);
+  if (!searchRes.ok) return [];
+  const searchData = await searchRes.json();
+  const orderedIds: string[] = (searchData.items || []).map((i: any) => i.id.videoId).filter(Boolean);
+  if (orderedIds.length === 0) return [];
+
+  const videosUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${orderedIds.join(
+    ","
+  )}&key=${apiKey}`;
+  const videosRes = await fetch(videosUrl);
+  if (!videosRes.ok) return [];
+  const videosData = await videosRes.json();
+  const byId = new Map((videosData.items || []).map((v: any) => [v.id, v]));
+
+  return orderedIds
+    .map((id) => byId.get(id))
+    .filter(Boolean)
+    .map((v: any) => ({
+      videoId: v.id,
+      title: v.snippet?.title || "",
+      channelTitle: v.snippet?.channelTitle || "",
+      thumbnail: v.snippet?.thumbnails?.medium?.url || v.snippet?.thumbnails?.default?.url || "",
+      publishedAt: v.snippet?.publishedAt || "",
+      tags: (v.snippet?.tags as string[]) || [],
+      views: Number(v.statistics?.viewCount || 0),
+      likes: Number(v.statistics?.likeCount || 0),
+      comments: Number(v.statistics?.commentCount || 0),
+    }));
 }
 
 /**
@@ -66,10 +120,13 @@ export async function POST(req: NextRequest) {
     throw e;
   }
 
-  const cacheKey = `kw:${keyword.trim().toLowerCase()}`;
-  const result = await cached(cacheKey, 60 * 60 * 12, async () => {
-    const related = await fetchRelatedKeywords(keyword);
-    const resultCount = await fetchSearchResultCount(keyword);
+  const cacheKey = `kwfull:${keyword.trim().toLowerCase()}`;
+  const result = await cached(cacheKey, 60 * 30, async () => {
+    const [related, resultCount, serp] = await Promise.all([
+      fetchRelatedKeywords(keyword),
+      fetchSearchResultCount(keyword),
+      fetchSerp(keyword),
+    ]);
     const overview = scoreKeyword(related.length, resultCount);
 
     const relatedWithMetrics = await Promise.all(
@@ -79,7 +136,7 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    return { overview, related: relatedWithMetrics };
+    return { overview, related: relatedWithMetrics, serp };
   });
 
   await prisma.keywordSearch.create({

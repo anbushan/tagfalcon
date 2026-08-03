@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import EditablePlanForm from "@/components/EditablePlanForm";
 
 export default async function AdminPlanDetailPage({ params }: { params: { id: string } }) {
   const plan = await prisma.plan.findUnique({ where: { id: params.id } });
@@ -36,11 +37,11 @@ export default async function AdminPlanDetailPage({ params }: { params: { id: st
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-md border p-3">
           <p className="text-xs text-gray-500">Monthly price</p>
-          <p className="mt-1 font-medium">${(plan.priceMonthly / 100).toFixed(0)}</p>
+          <p className="mt-1 font-medium">₹{(plan.priceMonthly / 100).toFixed(0)}</p>
         </div>
         <div className="rounded-md border p-3">
           <p className="text-xs text-gray-500">Yearly price</p>
-          <p className="mt-1 font-medium">${(plan.priceYearly / 100).toFixed(0)}</p>
+          <p className="mt-1 font-medium">₹{(plan.priceYearly / 100).toFixed(0)}</p>
         </div>
         <div className="rounded-md border p-3">
           <p className="text-xs text-gray-500">Active subscribers</p>
@@ -52,31 +53,7 @@ export default async function AdminPlanDetailPage({ params }: { params: { id: st
         </div>
       </div>
 
-      <section className="mt-8">
-        <h2 className="font-medium">Daily limits</h2>
-        <div className="mt-2 grid grid-cols-3 gap-4">
-          <div className="rounded-md border p-3 text-center">
-            <p className="text-xs text-gray-500">Tag generations</p>
-            <p className="mt-1 text-lg font-semibold">{plan.tagGenLimit}</p>
-          </div>
-          <div className="rounded-md border p-3 text-center">
-            <p className="text-xs text-gray-500">Keyword searches</p>
-            <p className="mt-1 text-lg font-semibold">{plan.keywordSearchLimit}</p>
-          </div>
-          <div className="rounded-md border p-3 text-center">
-            <p className="text-xs text-gray-500">Rank checks</p>
-            <p className="mt-1 text-lg font-semibold">{plan.rankCheckLimit}</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-8">
-        <h2 className="font-medium">Stripe price IDs</h2>
-        <div className="mt-2 rounded-md border p-4 text-sm">
-          <p>Monthly: {plan.stripePriceIdMonthly ?? "not configured"}</p>
-          <p className="mt-1">Yearly: {plan.stripePriceIdYearly ?? "not configured"}</p>
-        </div>
-      </section>
+      <EditablePlanForm plan={plan} />
 
       <section className="mt-8">
         <h2 className="font-medium">Recent subscribers</h2>
@@ -92,11 +69,6 @@ export default async function AdminPlanDetailPage({ params }: { params: { id: st
           {subscribers.length === 0 && <p className="px-4 py-3 text-gray-500">No subscribers yet.</p>}
         </div>
       </section>
-
-      <p className="mt-8 text-xs text-gray-400">
-        Editing limits/prices here isn't wired up yet — change via{" "}
-        <code className="rounded bg-gray-100 px-1">prisma/seed.ts</code> or Prisma Studio.
-      </p>
     </main>
   );
 }

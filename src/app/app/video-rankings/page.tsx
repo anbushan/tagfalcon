@@ -6,7 +6,13 @@ import InsightBarChart from "@/components/charts/InsightBarChart";
 import { trackEvent, trackError } from "@/lib/analytics";
 import { useLanguage } from "@/components/LanguageProvider";
 
-type RankResult = { keyword: string; position: number | null };
+type RankResult = { keyword: string; source: "title" | "tag"; position: number | null };
+
+const SUGGESTIONS = [
+  "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "https://www.youtube.com/watch?v=9bZkp7q19f0",
+  "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+];
 
 export default function VideoRankingsPage() {
   const { t } = useLanguage();
@@ -17,7 +23,9 @@ export default function VideoRankingsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function analyze() {
+  async function analyze(override?: string) {
+    const target = override ?? videoUrl;
+    if (override) setVideoUrl(override);
     setLoading(true);
     setError(null);
     setResults([]);
@@ -27,7 +35,7 @@ export default function VideoRankingsPage() {
       const res = await fetch("/api/tools/rank-checker", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoUrl }),
+        body: JSON.stringify({ videoUrl: target }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -82,7 +90,7 @@ export default function VideoRankingsPage() {
           onChange={(e) => setVideoUrl(e.target.value)}
         />
         <button
-          onClick={analyze}
+          onClick={() => analyze()}
           disabled={loading || videoUrl.trim().length < 5}
           className="rounded-full bg-yt-red px-5 py-2 font-medium text-white hover:bg-yt-red-dark disabled:opacity-50"
         >
@@ -91,6 +99,23 @@ export default function VideoRankingsPage() {
       </div>
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
+
+      {!videoTitle && !loading && (
+        <div className="mt-4">
+          <p className="text-xs text-gray-400">Try one of these:</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {SUGGESTIONS.map((s) => (
+              <button
+                key={s}
+                onClick={() => analyze(s)}
+                className="rounded-full border px-3 py-1 text-xs text-gray-600 hover:bg-gray-50 dark:border-yt-border dark:text-gray-400 dark:hover:bg-yt-dark-3"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {videoTitle && (
         <div className="mt-6">
@@ -111,24 +136,37 @@ export default function VideoRankingsPage() {
             </div>
           </div>
 
-          <div className="mt-4 space-y-2">
-            {results.map((r) => (
-              <div
-                key={r.keyword}
-                className="flex items-center justify-between rounded-yt border border-gray-200 p-3 text-sm dark:border-yt-border"
-              >
-                <span>{r.keyword}</span>
-                {r.position ? (
-                  <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-yt-red dark:bg-red-950">
-                    #{r.position}
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500 dark:bg-yt-dark-3">
-                    {t("rankings.notFound")}
-                  </span>
-                )}
-              </div>
-            ))}
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-gray-500 dark:border-yt-border dark:text-gray-400">
+                  <th className="py-2">{t("rankings.rank")}</th>
+                  <th className="py-2">{t("rankings.keyword")}</th>
+                  <th className="py-2">{t("rankings.source")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {results.map((r) => (
+                  <tr key={r.keyword} className="border-b dark:border-yt-border">
+                    <td className="py-2">
+                      {r.position ? (
+                        <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-yt-red dark:bg-red-950">
+                          #{r.position}
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500 dark:bg-yt-dark-3">
+                          {t("rankings.notFound")}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2">{r.keyword}</td>
+                    <td className="py-2 text-gray-500 dark:text-gray-400">
+                      {r.source === "title" ? t("rankings.sourceTitle") : t("rankings.sourceTag")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           {results.length > 0 && (

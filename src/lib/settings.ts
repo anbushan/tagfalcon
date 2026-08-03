@@ -2,18 +2,15 @@ import { prisma } from "@/lib/prisma";
 
 export const SETTING_DEFS: {
   key: string;
-  category: "youtube" | "stripe" | "google_oauth" | "redis" | "adsense" | "admin" | "email" | "analytics";
+  category: "youtube" | "razorpay" | "google_oauth" | "redis" | "adsense" | "admin" | "email" | "analytics";
   label: string;
   isSecret: boolean;
   description?: string;
 }[] = [
-  { key: "YOUTUBE_API_KEY", category: "youtube", label: "YouTube Data API key", isSecret: true, description: "Used by Tag Generator, Keyword Research, and Rank Checker." },
-  { key: "STRIPE_SECRET_KEY", category: "stripe", label: "Stripe secret key", isSecret: true },
-  { key: "STRIPE_WEBHOOK_SECRET", category: "stripe", label: "Stripe webhook signing secret", isSecret: true },
-  { key: "STRIPE_PRICE_CREATOR_MONTHLY", category: "stripe", label: "Creator — monthly price ID", isSecret: false },
-  { key: "STRIPE_PRICE_CREATOR_YEARLY", category: "stripe", label: "Creator — yearly price ID", isSecret: false },
-  { key: "STRIPE_PRICE_PRO_MONTHLY", category: "stripe", label: "Pro — monthly price ID", isSecret: false },
-  { key: "STRIPE_PRICE_PRO_YEARLY", category: "stripe", label: "Pro — yearly price ID", isSecret: false },
+  { key: "YOUTUBE_API_KEY", category: "youtube", label: "YouTube Data API key", isSecret: true, description: "Used by Tag Generator, Keyword Research, Rank Checker, and Revenue Report." },
+  { key: "RAZORPAY_KEY_ID", category: "razorpay", label: "Razorpay key ID", isSecret: false, description: "Public key — used both server-side to create orders and client-side to open the Checkout.js widget." },
+  { key: "RAZORPAY_KEY_SECRET", category: "razorpay", label: "Razorpay key secret", isSecret: true, description: "Used server-side to create orders and verify payment signatures." },
+  { key: "RAZORPAY_WEBHOOK_SECRET", category: "razorpay", label: "Razorpay webhook secret", isSecret: true, description: "Set on the webhook config in the Razorpay dashboard — verifies incoming webhook requests are genuine." },
   { key: "GOOGLE_CLIENT_ID", category: "google_oauth", label: "Google OAuth client ID", isSecret: false, description: "Editing here does NOT take effect until restart — NextAuth reads this from process.env at boot, not the DB. Shown for reference/change-tracking only." },
   { key: "GOOGLE_CLIENT_SECRET", category: "google_oauth", label: "Google OAuth client secret", isSecret: true, description: "Same restart caveat as client ID." },
   { key: "UPSTASH_REDIS_REST_URL", category: "redis", label: "Upstash Redis REST URL", isSecret: false },

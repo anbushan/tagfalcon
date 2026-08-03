@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUserId } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { getStripeClient } from "@/lib/stripe";
+import { createRazorpayOrder, getRazorpayKeys } from "@/lib/razorpay";
 import { z } from "zod";
 
 const bodySchema = z.object({
@@ -12,7 +12,6 @@ const bodySchema = z.object({
 export async function POST(req: NextRequest) {
   const userId = await requireUserId();
   if (!userId) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  const userEmail = session.user.email as string;
 
   const parsed = bodySchema.safeParse(await req.json());
   if (!parsed.success) {
@@ -28,33 +27,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "FREE_PLAN_HAS_NO_CHECKOUT" }, { status: 400 });
   }
 
-  const priceId = interval === "year" ? plan.stripePriceIdYearly : plan.stripePriceIdMonthly;
-  if (!priceId) {
-    return NextResponse.json(
-      { error: "STRIPE_PRICE_NOT_CONFIGURED", detail: `Set stripePriceId${interval === "year" ? "Yearly" : "Monthly"} for the ${plan.name} plan.` },
-      { status: 500 }
-    );
+  const keys = await getRazorpayKeys();
+  if (!keys) {
+    return NextResponse.json({ error: "RAZORPAY_NOT_CONFIGURED" }, { status: 500 });
   }
 
-  // Reuse an existing Stripe customer if this user already has one from a past subscription.
-  const existingSub = await prisma.subscription.findFirst({
-    where: { userId, stripeCustomerId: { not: null } },
-    orderBy: { createdAt: "desc" },
+  const amountPaise = interval === "year" ? plan.priceYearly : plan.priceMonthly;
+
+  const order = await createRazorpayOrder({
+    amountPaise,
+    currency: "INR",
+    // Razorpay receipts are capped at 40 chars — keep it short but unique.
+    receipt: `${plan.slug}_${interval}_${Date.now()}`,
+    notes: { userId, planId: plan.id, interval },
   });
+  if ("apiError" in order) {
+    return NextResponse.json({ error: "RAZORPAY_API_ERROR", detail: order.apiError }, { status: 502 });
+  }
 
-  const baseUrl = process.env.NEXTAUTH_URL || req.nextUrl.origin;
-
-  const stripe = await getStripeClient();
-  const checkoutSession = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: existingSub?.stripeCustomerId ?? undefined,
-    customer_email: existingSub?.stripeCustomerId ? undefined : userEmail,
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${baseUrl}/app/billing?checkout=success`,
-    cancel_url: `${baseUrl}/pricing?checkout=canceled`,
-    metadata: { userId, planId: plan.id, interval },
-    subscription_data: { metadata: { userId, planId: plan.id, interval } },
+  return NextResponse.json({
+    orderId: order.id,
+    amount: order.amount,
+    currency: order.currency,
+    keyId: keys.keyId,
+    planName: plan.name,
   });
-
-  return NextResponse.json({ url: checkoutSession.url });
 }

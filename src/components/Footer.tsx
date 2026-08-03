@@ -55,6 +55,10 @@ export default function Footer() {
             © {new Date().getFullYear()} TagFalcon. All rights reserved.
           </p>
         </div>
+        <p className="mt-4 text-center text-xs text-gray-400 dark:text-gray-500 sm:text-left">
+          Public video and channel data is sourced from the YouTube API. TagFalcon is not affiliated with or
+          endorsed by YouTube.
+        </p>
       </div>
     </footer>
   );

@@ -7,6 +7,7 @@ import { useToast } from "@/components/Toast";
 import { trackEvent } from "@/lib/analytics";
 import { useLanguage } from "@/components/LanguageProvider";
 import Avatar from "@/components/Avatar";
+import AdSlot from "@/components/AdSlot";
 
 export default function ProfilePage() {
   const { data: session, update } = useSession();
@@ -32,6 +33,7 @@ export default function ProfilePage() {
       showToast("Couldn't update name.", "error");
       return;
     }
+    trackEvent("update_profile_name");
     showToast("Name updated.");
     await update();
   }
@@ -108,6 +110,8 @@ export default function ProfilePage() {
           </button>
         </div>
       </section>
+
+      <AdSlot slot="1313131313" />
     </main>
   );
 }

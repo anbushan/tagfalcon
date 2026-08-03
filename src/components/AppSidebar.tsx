@@ -49,6 +49,118 @@ const NAV_ITEMS = [
     ),
   },
   {
+    href: "/app/trends",
+    key: "trends",
+    icon: (
+      <path
+        d="M3 17l6-6 4 4 8-8M17 7h4v4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    ),
+  },
+  {
+    href: "/app/optimization",
+    key: "optimization",
+    icon: (
+      <path
+        d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    ),
+  },
+  {
+    href: "/app/channel-audit",
+    key: "audit",
+    icon: (
+      <path
+        d="M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 0a2 2 0 002 2h2a2 2 0 002-2m-6 0H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M8 12l2 2 4-4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    ),
+  },
+  {
+    href: "/app/upload-time",
+    key: "uploadTime",
+    icon: (
+      <path
+        d="M12 22a10 10 0 100-20 10 10 0 000 20zM12 7v5l3 3"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    ),
+  },
+  {
+    href: "/app/compare",
+    key: "compare",
+    icon: (
+      <path
+        d="M8 3v18M16 3v18M4 3h4M4 21h4M16 3h4M16 21h4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    ),
+  },
+  {
+    href: "/app/breakout-videos",
+    key: "breakout",
+    icon: (
+      <path
+        d="M12 2l2.9 6.9L22 9.2l-5.5 5 1.6 7.6L12 18l-6.1 3.8L7.5 14 2 9.2l7.1-.3L12 2z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    ),
+  },
+  {
+    href: "/app/hashtag-generator",
+    key: "hashtags",
+    icon: (
+      <path
+        d="M9 4L7 20M17 4l-2 16M4 9h16M3 15h16"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    ),
+  },
+  {
+    href: "/app/revenue-report",
+    key: "revenue",
+    icon: (
+      <path
+        d="M12 2v20M17 5.5a4 4 0 00-4-2h-1.5a3.5 3.5 0 000 7H13a3.5 3.5 0 010 7h-2a4 4 0 01-4-2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    ),
+  },
+  {
     href: "/app/research/keywords/workspaces",
     key: "workspaces",
     icon: (

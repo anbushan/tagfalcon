@@ -9,7 +9,7 @@ export default function PrivacyPage() {
         <p>
           This is placeholder content. Replace with your actual privacy policy — covering what data
           you collect (account info, Google OAuth profile, usage/history data), how it's used, and
-          how users can request deletion. Since you handle Google OAuth and Stripe payment data, this
+          how users can request deletion. Since you handle Google OAuth and Razorpay payment data, this
           needs to be accurate and complete, not boilerplate.
         </p>
       </div>

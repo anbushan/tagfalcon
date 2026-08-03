@@ -9,35 +9,58 @@ async function main() {
     {
       name: "Free",
       slug: "free",
+      description: "Try every tool at low daily limits, no card required.",
       priceMonthly: 0,
       priceYearly: 0,
       tagGenLimit: 20,
       keywordSearchLimit: 20,
       rankCheckLimit: 20,
+      revenueReportLimit: 5,
+      trendsResearchLimit: 10,
+      videoOptimizationLimit: 10,
+      channelAuditLimit: 5,
+      hashtagGenLimit: 20,
+      uploadTimeLimit: 5,
+      channelComparisonLimit: 5,
+      breakoutVideoLimit: 5,
       featuresJson: { history: false, export: false },
     },
     {
       name: "Creator",
       slug: "creator",
-      priceMonthly: 1500, // $15.00
-      priceYearly: 15000, // 2 months free
-      stripePriceIdMonthly: process.env.STRIPE_PRICE_CREATOR_MONTHLY || null,
-      stripePriceIdYearly: process.env.STRIPE_PRICE_CREATOR_YEARLY || null,
+      description: "Higher daily limits plus history and CSV export for active creators.",
+      priceMonthly: 49900, // ₹499.00
+      priceYearly: 499000, // 2 months free
       tagGenLimit: 50,
       keywordSearchLimit: 50,
       rankCheckLimit: 25,
+      revenueReportLimit: 15,
+      trendsResearchLimit: 30,
+      videoOptimizationLimit: 30,
+      channelAuditLimit: 15,
+      hashtagGenLimit: 50,
+      uploadTimeLimit: 15,
+      channelComparisonLimit: 15,
+      breakoutVideoLimit: 15,
       featuresJson: { history: true, export: true },
     },
     {
       name: "Pro",
       slug: "pro",
-      priceMonthly: 3500, // $35.00
-      priceYearly: 35000,
-      stripePriceIdMonthly: process.env.STRIPE_PRICE_PRO_MONTHLY || null,
-      stripePriceIdYearly: process.env.STRIPE_PRICE_PRO_YEARLY || null,
+      description: "High-volume limits and priority support for teams and agencies.",
+      priceMonthly: 99900, // ₹999.00
+      priceYearly: 999000, // 2 months free
       tagGenLimit: 1000,
       keywordSearchLimit: 1000,
       rankCheckLimit: 500,
+      revenueReportLimit: 100,
+      trendsResearchLimit: 200,
+      videoOptimizationLimit: 200,
+      channelAuditLimit: 100,
+      hashtagGenLimit: 1000,
+      uploadTimeLimit: 100,
+      channelComparisonLimit: 100,
+      breakoutVideoLimit: 100,
       featuresJson: { history: true, export: true, priority_support: true },
     },
   ];
@@ -45,7 +68,7 @@ async function main() {
   for (const plan of plans) {
     await prisma.plan.upsert({
       where: { slug: plan.slug },
-      update: plan,
+      update: {}, // never clobber admin-edited plan fields (price, limits, description) on re-seed
       create: plan,
     });
   }
@@ -69,7 +92,7 @@ async function main() {
     },
     {
       question: "What payment methods do you accept?",
-      answer: "Cards, Apple Pay, and Google Pay via Stripe.",
+      answer: "Cards, UPI, netbanking, and wallets via Razorpay.",
       sortOrder: 4,
     },
     {

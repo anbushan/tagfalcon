@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import RemoveKeywordButton from "@/components/RemoveKeywordButton";
+import AdSlot from "@/components/AdSlot";
 
 export default async function WorkspaceDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -63,6 +64,8 @@ export default async function WorkspaceDetailPage({ params }: { params: { id: st
         </tbody>
       </table>
       </div>
+
+      <AdSlot slot="1414141414" />
     </main>
   );
 }
