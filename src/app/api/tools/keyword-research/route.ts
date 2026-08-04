@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { cached } from "@/lib/redis";
 import { getSetting } from "@/lib/settings";
 import { checkAndIncrementUsage } from "@/lib/usage-limits";
+import { fetchRelatedKeywords } from "@/lib/keyword-suggest";
 import { z } from "zod";
 
 const bodySchema = z.object({ keyword: z.string().min(2).max(100) });
@@ -20,16 +21,6 @@ export type SerpResult = {
   comments: number;
 };
 
-async function fetchRelatedKeywords(keyword: string): Promise<string[]> {
-  const url = `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(
-    keyword
-  )}`;
-  const res = await fetch(url);
-  if (!res.ok) return [];
-  const data = await res.json();
-  return (data[1] as string[]) || [];
-}
-
 async function fetchSearchResultCount(keyword: string): Promise<number> {
   const apiKey = await getSetting("YOUTUBE_API_KEY");
   if (!apiKey) return 0;
@@ -42,21 +33,25 @@ async function fetchSearchResultCount(keyword: string): Promise<number> {
   return data.pageInfo?.totalResults ?? 0;
 }
 
+type SerpFetchResult = SerpResult[] | { apiError: string };
+
 /**
  * Top-ranking videos for the keyword, enriched with tags and engagement
  * stats — one search.list call to get ranking order, one batched videos.list
  * call to fill in the details search results don't carry (tags, statistics).
  */
-async function fetchSerp(keyword: string): Promise<SerpResult[]> {
+async function fetchSerp(keyword: string): Promise<SerpFetchResult> {
   const apiKey = await getSetting("YOUTUBE_API_KEY");
-  if (!apiKey) return [];
+  if (!apiKey) return { apiError: "YouTube API isn't configured yet." };
 
   const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(
     keyword
   )}&key=${apiKey}`;
   const searchRes = await fetch(searchUrl);
-  if (!searchRes.ok) return [];
-  const searchData = await searchRes.json();
+  const searchData = await searchRes.json().catch(() => null);
+  if (!searchRes.ok) {
+    return { apiError: searchData?.error?.message || `YouTube API returned HTTP ${searchRes.status}` };
+  }
   const orderedIds: string[] = (searchData.items || []).map((i: any) => i.id.videoId).filter(Boolean);
   if (orderedIds.length === 0) return [];
 
@@ -64,8 +59,10 @@ async function fetchSerp(keyword: string): Promise<SerpResult[]> {
     ","
   )}&key=${apiKey}`;
   const videosRes = await fetch(videosUrl);
-  if (!videosRes.ok) return [];
-  const videosData = await videosRes.json();
+  const videosData = await videosRes.json().catch(() => null);
+  if (!videosRes.ok) {
+    return { apiError: videosData?.error?.message || `YouTube API returned HTTP ${videosRes.status}` };
+  }
   const byId = new Map((videosData.items || []).map((v: any) => [v.id, v]));
 
   return orderedIds
@@ -101,6 +98,19 @@ function scoreKeyword(relatedCount: number, resultCount: number) {
   };
 }
 
+/**
+ * Scores a related keyword without spending a search.list call on it (that
+ * API is 100 quota units/call — doing this for 25 related terms burned 2,500
+ * units on a single "Research" click and was a likely cause of the SERP tab
+ * silently going empty once quota ran out). Instead, decay the main
+ * keyword's already-fetched result count by rank in the (free) autocomplete
+ * list — a rough but zero-cost stand-in for "how competitive is this term."
+ */
+function estimateRelatedScore(rank: number, baseResultCount: number) {
+  const decayedResultCount = baseResultCount * Math.pow(0.85, rank);
+  return scoreKeyword(3, decayedResultCount);
+}
+
 export async function POST(req: NextRequest) {
   const userId = await requireUserId();
   if (!userId) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
@@ -120,23 +130,23 @@ export async function POST(req: NextRequest) {
     throw e;
   }
 
-  const cacheKey = `kwfull:${keyword.trim().toLowerCase()}`;
+  const cacheKey = `kwfull:v2:${keyword.trim().toLowerCase()}`;
   const result = await cached(cacheKey, 60 * 30, async () => {
-    const [related, resultCount, serp] = await Promise.all([
+    const [related, resultCount, serpResult] = await Promise.all([
       fetchRelatedKeywords(keyword),
       fetchSearchResultCount(keyword),
       fetchSerp(keyword),
     ]);
     const overview = scoreKeyword(related.length, resultCount);
 
-    const relatedWithMetrics = await Promise.all(
-      related.slice(0, 25).map(async (kw) => {
-        const rc = await fetchSearchResultCount(kw);
-        return { keyword: kw, ...scoreKeyword(3, rc) };
-      })
-    );
+    const relatedWithMetrics = related
+      .slice(0, 25)
+      .map((kw, i) => ({ keyword: kw, ...estimateRelatedScore(i, resultCount) }));
 
-    return { overview, related: relatedWithMetrics, serp };
+    const serp = Array.isArray(serpResult) ? serpResult : [];
+    const serpError = Array.isArray(serpResult) ? null : serpResult.apiError;
+
+    return { overview, related: relatedWithMetrics, serp, serpError };
   });
 
   await prisma.keywordSearch.create({

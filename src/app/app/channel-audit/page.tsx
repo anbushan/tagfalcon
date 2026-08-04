@@ -1,12 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import { Users, Clock, Heart, TrendingUp, TrendingDown, Minus, CheckCircle2, AlertTriangle, Info, Target, Wrench, ChevronDown, CalendarClock, DollarSign } from "lucide-react";
 import AdSlot from "@/components/AdSlot";
 import InsightBarChart from "@/components/charts/InsightBarChart";
+import StatTile from "@/components/StatTile";
+import ScoreGauge from "@/components/ScoreGauge";
+import InfoTooltip from "@/components/InfoTooltip";
+import AutocompleteInput from "@/components/AutocompleteInput";
+import ChannelAvatar from "@/components/ChannelAvatar";
 import { trackEvent, trackError } from "@/lib/analytics";
 import { useLanguage } from "@/components/LanguageProvider";
 
-type Finding = { key: string; label: string; passed: boolean; message: string };
+type FindingImpact = "high" | "medium" | "low" | "info";
+type Finding = {
+  key: string;
+  label: string;
+  passed: boolean;
+  message: string;
+  impact: FindingImpact;
+  goodMessage?: string;
+  mistake?: string;
+  fix?: string;
+};
 type AuditVideo = {
   videoId: string;
   title: string;
@@ -17,6 +33,17 @@ type AuditVideo = {
   publishedAt: string;
 };
 type UploadGap = { label: string; days: number };
+type DayBucket = { day: string; avgViews: number; count: number };
+type TimeBucket = { bucket: string; avgViews: number; count: number };
+type PostingTime = {
+  bestDay: string | null;
+  bestBucket: string | null;
+  dayBreakdown: DayBucket[];
+  timeBreakdown: TimeBucket[];
+  summary: string | null;
+};
+type FocusArea = { key: string; label: string; mistake: string; fix: string };
+type MonetizationInfo = { meetsSubscriberThreshold: boolean | null; subscribersToGo: number | null; guidance: string[] };
 
 type AuditResult = {
   channelId: string;
@@ -32,18 +59,19 @@ type AuditResult = {
   viewsTrend: "growing" | "declining" | "steady" | "unknown";
   score: number;
   findings: Finding[];
+  focusArea: FocusArea | null;
+  monetization: MonetizationInfo;
+  postingTime: PostingTime;
   recentVideos: AuditVideo[];
 };
 
 const compactNumber = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 
-function scoreColor(score: number) {
-  if (score >= 80) return "text-green-600 dark:text-green-400";
-  if (score >= 50) return "text-amber-600 dark:text-amber-400";
-  return "text-yt-red";
-}
-
 const SUGGESTIONS = ["https://www.youtube.com/@MrBeast", "@mkbhd", "@veritasium"];
+
+const DAY_FULL: Record<string, string> = {
+  Sun: "Sun", Mon: "Mon", Tue: "Tue", Wed: "Wed", Thu: "Thu", Fri: "Fri", Sat: "Sat",
+};
 
 export default function ChannelAuditPage() {
   const { t } = useLanguage();
@@ -177,18 +205,41 @@ export default function ChannelAuditPage() {
     }
   }
 
+  function findingIcon(item: Finding) {
+    if (item.passed) return { Icon: CheckCircle2, bg: "bg-green-500" };
+    if (item.impact === "info") return { Icon: Info, bg: "bg-gray-400" };
+    return { Icon: AlertTriangle, bg: "bg-amber-500" };
+  }
+
+  const trendIcon = result
+    ? result.viewsTrend === "growing"
+      ? TrendingUp
+      : result.viewsTrend === "declining"
+      ? TrendingDown
+      : Minus
+    : Minus;
+  const trendTone: "good" | "warn" | "bad" | "neutral" =
+    result?.viewsTrend === "growing" ? "good" : result?.viewsTrend === "declining" ? "bad" : "neutral";
+  const freqFinding = result?.findings.find((f) => f.key === "upload_frequency");
+  const engagementFinding = result?.findings.find((f) => f.key === "engagement");
+
+  const pt = result?.postingTime;
+  const dayColors = pt?.dayBreakdown.map((d) => (d.day === pt.bestDay ? "#16a34a" : "#9ca3af"));
+  const timeColors = pt?.timeBreakdown.map((b) => (b.bucket === pt.bestBucket ? "#16a34a" : "#9ca3af"));
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-8 sm:py-10">
       <h1 className="text-2xl font-bold">{t("audit.title")}</h1>
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t("audit.subtitle")}</p>
 
       <div className="mt-6 flex gap-2">
-        <input
-          className="flex-1 rounded-full border border-gray-300 px-4 py-2 focus:border-yt-red focus:outline-none dark:border-yt-border dark:bg-yt-dark-2"
+        <AutocompleteInput
+          type="channel"
           placeholder="https://www.youtube.com/@channelname"
           value={channelUrl}
-          onChange={(e) => setChannelUrl(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !loading && channelUrl.trim().length >= 2 && analyze()}
+          onChange={setChannelUrl}
+          onPick={(v) => analyze(v)}
+          onEnter={() => channelUrl.trim().length >= 2 && analyze()}
         />
         <button
           onClick={() => analyze()}
@@ -221,53 +272,101 @@ export default function ChannelAuditPage() {
       {result && (
         <div className="mt-6">
           <div className="flex items-center gap-3 rounded-yt border border-gray-200 p-4 dark:border-yt-border">
-            {result.channelThumbnail && (
-              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-yt-dark-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={result.channelThumbnail} alt="" className="h-full w-full object-cover" />
-              </div>
-            )}
+            <ChannelAvatar src={result.channelThumbnail} name={result.channelTitle} size={64} />
             <p className="min-w-0 flex-1 truncate text-lg font-semibold">{result.channelTitle}</p>
             <div className="shrink-0 text-center">
-              <p className={`text-3xl font-bold ${scoreColor(result.score)}`}>{result.score}</p>
-              <p className="text-xs text-gray-400">{t("audit.score")}</p>
+              <ScoreGauge score={result.score} />
+              <p className="mt-1 text-xs text-gray-400">{t("audit.score")}</p>
             </div>
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label={t("audit.subscribers")} value={result.subscriberCount != null ? compactNumber.format(result.subscriberCount) : "—"} />
-            <Stat label={t("audit.uploadGap")} value={result.avgUploadGapDays != null ? `${result.avgUploadGapDays.toFixed(1)}d` : "—"} />
-            <Stat label={t("audit.engagement")} value={`${(result.engagementRate * 100).toFixed(1)}%`} />
-            <Stat label={t("audit.trend")} value={t(`audit.trend_${result.viewsTrend}`)} />
+            <StatTile icon={Users} label={t("audit.subscribers")} value={result.subscriberCount != null ? compactNumber.format(result.subscriberCount) : "—"} />
+            <StatTile
+              icon={Clock}
+              label={t("audit.uploadGap")}
+              value={result.avgUploadGapDays != null ? `${result.avgUploadGapDays.toFixed(1)}d` : "—"}
+              tone={freqFinding?.passed ? "good" : "warn"}
+              tooltip="Average number of days between your most recent uploads. Shorter, regular gaps tend to help the algorithm keep recommending you."
+            />
+            <StatTile
+              icon={Heart}
+              label={t("audit.engagement")}
+              value={`${(result.engagementRate * 100).toFixed(1)}%`}
+              tone={engagementFinding?.passed ? "good" : "warn"}
+              tooltip="Share of views that turn into a like or comment. ~2% is a rough healthy benchmark."
+            />
+            <StatTile
+              icon={trendIcon}
+              label={t("audit.trend")}
+              value={t(`audit.trend_${result.viewsTrend}`)}
+              tone={trendTone}
+              tooltip="Whether your most recent uploads are getting more or fewer views than your older ones."
+            />
           </div>
 
-          <div className="mt-4 space-y-2">
+          {result.focusArea && (
+            <div className="mt-4 flex gap-3 rounded-yt border-l-4 border-yt-red bg-red-50 p-4 dark:bg-red-950/20">
+              <Target size={20} className="mt-0.5 shrink-0 text-yt-red" />
+              <div>
+                <p className="text-sm font-semibold text-yt-red">{t("audit.focusTitle")}: {result.focusArea.label}</p>
+                <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">{result.focusArea.mistake}</p>
+                <p className="mt-2 flex items-start gap-1.5 text-sm font-medium text-gray-900 dark:text-gray-100">
+                  <Wrench size={15} className="mt-0.5 shrink-0" />
+                  {result.focusArea.fix}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4 rounded-yt border border-gray-200 p-4 dark:border-yt-border">
+            <p className="flex items-center gap-1.5 text-sm font-semibold">
+              <DollarSign size={16} className={result.monetization.meetsSubscriberThreshold ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"} />
+              {t("audit.monetizationTitle")}
+            </p>
+            <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+              {result.monetization.meetsSubscriberThreshold === true
+                ? t("audit.monetizationEligible")
+                : result.monetization.meetsSubscriberThreshold === false
+                ? t("audit.monetizationNotEligible")
+                : t("audit.monetizationUnknown")}
+            </p>
+            <ul className="mt-2 space-y-1.5 text-xs text-gray-600 dark:text-gray-400">
+              {result.monetization.guidance.map((line, i) => (
+                <li key={i} className="flex items-start gap-1.5">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-400" />
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="mt-5 text-sm font-medium">{t("audit.mistakesWins")}</p>
+          <div className="mt-2 space-y-2">
             {result.findings.map((item) => {
               const isOpen = expandedKey === item.key;
+              const { Icon, bg } = findingIcon(item);
               return (
                 <div key={item.key} className="rounded-yt border border-gray-200 dark:border-yt-border">
                   <button
                     onClick={() => setExpandedKey(isOpen ? null : item.key)}
                     className="flex w-full items-center gap-2 p-3 text-left text-sm"
                   >
-                    <span
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs text-white ${
-                        item.passed ? "bg-green-500" : "bg-amber-500"
-                      }`}
-                    >
-                      {item.passed ? "✓" : "!"}
+                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white ${bg}`}>
+                      <Icon size={12} />
                     </span>
                     <span className="flex-1 font-medium">{item.label}</span>
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      className={`shrink-0 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
-                    >
-                      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                    <ChevronDown size={16} className={`shrink-0 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                   </button>
-                  <p className="px-3 pb-3 pl-10 text-xs text-gray-500 dark:text-gray-400">{item.message}</p>
+                  <div className="px-3 pb-3 pl-10 text-xs text-gray-500 dark:text-gray-400">
+                    <p>{item.passed ? item.goodMessage || item.message : item.mistake || item.message}</p>
+                    {!item.passed && item.fix && (
+                      <p className="mt-1.5 flex items-start gap-1.5 font-medium text-gray-700 dark:text-gray-300">
+                        <Wrench size={12} className="mt-0.5 shrink-0" />
+                        <span>{t("audit.howToFix")}: {item.fix}</span>
+                      </p>
+                    )}
+                  </div>
                   {isOpen && (
                     <div className="border-t border-gray-100 p-3 pl-10 dark:border-yt-border">{renderDetail(item, result)}</div>
                   )}
@@ -276,8 +375,40 @@ export default function ChannelAuditPage() {
             })}
           </div>
 
+          {pt && (pt.bestDay || pt.bestBucket) && (
+            <div className="mt-5">
+              <p className="flex items-center gap-1.5 text-sm font-medium">
+                <CalendarClock size={16} className="text-gray-400" />
+                {t("audit.bestTime")}
+                <InfoTooltip text="Based on which of your recent uploads' publish day/time got the most views. A small sample can make one video skew a bucket, so treat this as a starting point, not a guarantee." />
+              </p>
+              {pt.summary && <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{pt.summary}</p>}
+              <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="mb-1 text-xs text-gray-500 dark:text-gray-400">{t("audit.bestTimeByDay")}</p>
+                  <InsightBarChart
+                    data={pt.dayBreakdown.map((d) => ({ name: DAY_FULL[d.day] || d.day, value: d.avgViews }))}
+                    height={160}
+                    colorByIndex={dayColors}
+                  />
+                </div>
+                <div>
+                  <p className="mb-1 text-xs text-gray-500 dark:text-gray-400">{t("audit.bestTimeByHour")}</p>
+                  <InsightBarChart
+                    data={pt.timeBreakdown.map((b) => ({ name: b.bucket.replace(/\s*\(.*\)/, ""), value: b.avgViews }))}
+                    height={160}
+                    colorByIndex={timeColors}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          {pt && !pt.bestDay && !pt.bestBucket && (
+            <p className="mt-5 text-sm text-gray-400">{t("audit.bestTimeUnknown")}</p>
+          )}
+
           {result.recentVideos.length > 0 && (
-            <div className="mt-4">
+            <div className="mt-5">
               <p className="text-sm font-medium">{t("audit.recentVideos")}</p>
               <div className="mt-2 space-y-2">
                 {result.recentVideos.map((v) => (
@@ -313,14 +444,5 @@ export default function ChannelAuditPage() {
 
       <AdSlot slot="1212121212" />
     </main>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-yt border border-gray-200 p-3 text-center dark:border-yt-border">
-      <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="text-lg font-semibold">{value}</p>
-    </div>
   );
 }

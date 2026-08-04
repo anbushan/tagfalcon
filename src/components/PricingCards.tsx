@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { useToast } from "@/components/Toast";
 import { trackEvent } from "@/lib/analytics";
+import { convertInrPaiseToCurrency, formatCurrency } from "@/lib/currency";
 
 type Plan = {
   id: string;
@@ -48,6 +49,21 @@ export default function PricingCards({ plans }: { plans: Plan[] }) {
   const [interval, setInterval] = useState<"month" | "year">("month");
   const [loadingSlug, setLoadingSlug] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [displayCurrency, setDisplayCurrency] = useState("INR");
+
+  useEffect(() => {
+    fetch("/api/config/geo")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.currency) setDisplayCurrency(data.currency);
+      })
+      .catch(() => {});
+  }, []);
+
+  function displayPrice(inrPaise: number) {
+    const amount = displayCurrency === "INR" ? inrPaise : convertInrPaiseToCurrency(inrPaise, displayCurrency);
+    return formatCurrency(amount, displayCurrency);
+  }
 
   async function choosePlan(plan: Plan) {
     setError(null);
@@ -161,11 +177,11 @@ export default function PricingCards({ plans }: { plans: Plan[] }) {
             <div key={plan.id} className="rounded-yt border border-gray-200 p-6 dark:border-yt-border">
               <h2 className="text-xl font-semibold">{plan.name}</h2>
               <p className="mt-2 text-3xl font-bold">
-                ₹{(price / 100).toFixed(0)}
+                {displayPrice(price)}
                 <span className="text-base font-normal text-gray-500 dark:text-gray-400">/mo</span>
               </p>
               {interval === "year" && plan.priceMonthly > 0 && (
-                <p className="text-xs text-gray-500 dark:text-gray-400">billed ₹{(plan.priceYearly / 100).toFixed(0)}/yr</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">billed {displayPrice(plan.priceYearly)}/yr</p>
               )}
               {plan.description && (
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{plan.description}</p>

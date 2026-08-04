@@ -12,7 +12,8 @@ type ToolKey =
   | "hashtagGenCount"
   | "uploadTimeCount"
   | "channelComparisonCount"
-  | "breakoutVideoCount";
+  | "breakoutVideoCount"
+  | "topCreatorsCount";
 type LimitKey =
   | "tagGenLimit"
   | "keywordSearchLimit"
@@ -24,7 +25,8 @@ type LimitKey =
   | "hashtagGenLimit"
   | "uploadTimeLimit"
   | "channelComparisonLimit"
-  | "breakoutVideoLimit";
+  | "breakoutVideoLimit"
+  | "topCreatorsLimit";
 
 const TOOL_TO_LIMIT: Record<ToolKey, LimitKey> = {
   tagGenCount: "tagGenLimit",
@@ -38,6 +40,7 @@ const TOOL_TO_LIMIT: Record<ToolKey, LimitKey> = {
   uploadTimeCount: "uploadTimeLimit",
   channelComparisonCount: "channelComparisonLimit",
   breakoutVideoCount: "breakoutVideoLimit",
+  topCreatorsCount: "topCreatorsLimit",
 };
 
 function todayUTC(): Date {

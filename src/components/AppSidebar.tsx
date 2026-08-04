@@ -49,20 +49,6 @@ const NAV_ITEMS = [
     ),
   },
   {
-    href: "/app/trends",
-    key: "trends",
-    icon: (
-      <path
-        d="M3 17l6-6 4 4 8-8M17 7h4v4"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    ),
-  },
-  {
     href: "/app/optimization",
     key: "optimization",
     icon: (
@@ -124,6 +110,20 @@ const NAV_ITEMS = [
     icon: (
       <path
         d="M12 2l2.9 6.9L22 9.2l-5.5 5 1.6 7.6L12 18l-6.1 3.8L7.5 14 2 9.2l7.1-.3L12 2z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    ),
+  },
+  {
+    href: "/app/top-creators",
+    key: "topCreators",
+    icon: (
+      <path
+        d="M8 21V13a2 2 0 012-2h4a2 2 0 012 2v8M4 21V9a2 2 0 012-2h2M20 21V5a2 2 0 00-2-2h-2"
         stroke="currentColor"
         strokeWidth="1.6"
         fill="none"

@@ -5,7 +5,10 @@ const MS_PER_DAY = 86_400_000;
 export type TrendingVideo = {
   videoId: string;
   title: string;
+  channelId: string;
   channelTitle: string;
+  channelThumbnail: string | null;
+  channelSubscriberCount: number | null;
   thumbnail: string | null;
   views: number;
   likes: number;
@@ -14,6 +17,15 @@ export type TrendingVideo = {
 };
 
 type ApiError = { apiError: string };
+
+async function ytFetch(path: string, apiKey: string): Promise<any | ApiError> {
+  const res = await fetch(`https://www.googleapis.com/youtube/v3${path}${path.includes("?") ? "&" : "?"}key=${apiKey}`);
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    return { apiError: data?.error?.message || `YouTube API returned HTTP ${res.status}` };
+  }
+  return data;
+}
 
 export function categoryName(categoryId?: string): string | null {
   if (!categoryId) return null;
@@ -51,13 +63,45 @@ function toTrendingVideos(items: any[]): TrendingVideo[] {
     return {
       videoId: v.id,
       title: v.snippet?.title || "",
+      channelId: v.snippet?.channelId || "",
       channelTitle: v.snippet?.channelTitle || "",
+      channelThumbnail: null,
+      channelSubscriberCount: null,
       thumbnail: v.snippet?.thumbnails?.medium?.url || v.snippet?.thumbnails?.default?.url || null,
       views,
       likes: Number(v.statistics?.likeCount || 0),
       publishedAt,
       viewsPerDay: Math.round(views / daysSincePublished),
     };
+  });
+}
+
+/**
+ * Enriches trending videos with channel avatar/subscriber count via one
+ * batched channels.list call (1 quota unit) for all unique channelIds.
+ */
+async function enrichWithChannelInfo(videos: TrendingVideo[], apiKey: string): Promise<TrendingVideo[]> {
+  const uniqueIds = [...new Set(videos.map((v) => v.channelId).filter(Boolean))];
+  if (uniqueIds.length === 0) return videos;
+
+  const data = await ytFetch(`/channels?part=snippet,statistics&id=${uniqueIds.join(",")}`, apiKey);
+  if ("apiError" in data) return videos;
+
+  const byId = new Map<string, { thumbnail: string | null; subscriberCount: number | null }>(
+    (data?.items || []).map((c: any): [string, { thumbnail: string | null; subscriberCount: number | null }] => [
+      c.id,
+      {
+        thumbnail: c.snippet?.thumbnails?.default?.url || null,
+        subscriberCount: c.statistics?.hiddenSubscriberCount ? null : Number(c.statistics?.subscriberCount || 0),
+      },
+    ])
+  );
+
+  return videos.map((v) => {
+    const info = byId.get(v.channelId);
+    return info
+      ? { ...v, channelThumbnail: info.thumbnail, channelSubscriberCount: info.subscriberCount }
+      : v;
   });
 }
 
@@ -86,5 +130,7 @@ export async function fetchTrendingVideos(
 
   let videos = toTrendingVideos(data?.items || []);
   if (language) videos = videos.filter((v) => matchesLanguage(v.title, language));
-  return videos.slice(0, 20);
+  videos = videos.slice(0, 20);
+
+  return enrichWithChannelInfo(videos, apiKey);
 }

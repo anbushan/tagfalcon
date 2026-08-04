@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import AdSlot from "@/components/AdSlot";
+import InfoTooltip from "@/components/InfoTooltip";
+import AutocompleteInput from "@/components/AutocompleteInput";
+import ChannelAvatar from "@/components/ChannelAvatar";
 import { trackEvent, trackError } from "@/lib/analytics";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -29,10 +33,25 @@ const SUGGESTIONS = ["https://www.youtube.com/@MrBeast", "@mkbhd", "@veritasium"
 
 function statusBadge(status: Video["status"], t: (key: string) => string) {
   if (status === "breakout")
-    return <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-950 dark:text-green-300">{t("breakout.statusBreakout")}</span>;
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-950 dark:text-green-300">
+        <TrendingUp size={11} />
+        {t("breakout.statusBreakout")}
+      </span>
+    );
   if (status === "underperformer")
-    return <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-yt-red dark:bg-red-950">{t("breakout.statusUnderperformer")}</span>;
-  return <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-yt-dark-3">{t("breakout.statusTypical")}</span>;
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-yt-red dark:bg-red-950">
+        <TrendingDown size={11} />
+        {t("breakout.statusUnderperformer")}
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-yt-dark-3">
+      <Minus size={11} />
+      {t("breakout.statusTypical")}
+    </span>
+  );
 }
 
 export default function BreakoutVideosPage() {
@@ -88,12 +107,13 @@ export default function BreakoutVideosPage() {
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t("breakout.subtitle")}</p>
 
       <div className="mt-6 flex gap-2">
-        <input
-          className="flex-1 rounded-full border border-gray-300 px-4 py-2 focus:border-yt-red focus:outline-none dark:border-yt-border dark:bg-yt-dark-2"
+        <AutocompleteInput
+          type="channel"
           placeholder="https://www.youtube.com/@channelname"
           value={channelUrl}
-          onChange={(e) => setChannelUrl(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !loading && channelUrl.trim().length >= 2 && analyze()}
+          onChange={setChannelUrl}
+          onPick={(v) => analyze(v)}
+          onEnter={() => channelUrl.trim().length >= 2 && analyze()}
         />
         <button
           onClick={() => analyze()}
@@ -126,16 +146,12 @@ export default function BreakoutVideosPage() {
       {result && (
         <div className="mt-6">
           <div className="flex items-center gap-3 rounded-yt border border-gray-200 p-4 dark:border-yt-border">
-            {result.channelThumbnail && (
-              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-yt-dark-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={result.channelThumbnail} alt="" className="h-full w-full object-cover" />
-              </div>
-            )}
+            <ChannelAvatar src={result.channelThumbnail} name={result.channelTitle} size={56} />
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold">{result.channelTitle}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                 {t("breakout.avgViews")}: {compactNumber.format(result.avgViews)}
+                <InfoTooltip text="Each video below is compared against this channel average — the × shows how many times above or below average it performed." />
               </p>
             </div>
           </div>

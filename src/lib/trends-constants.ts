@@ -13,6 +13,7 @@ export const TREND_REGIONS: { code: string; name: string }[] = [
   { code: "KR", name: "South Korea" },
   { code: "MX", name: "Mexico" },
   { code: "ZA", name: "South Africa" },
+  { code: "SA", name: "Saudi Arabia" },
 ];
 
 // Limited to languages with a Unicode script distinct enough to detect from
@@ -27,6 +28,21 @@ export const TREND_LANGUAGES: { code: string; name: string }[] = [
   { code: "ko", name: "Korean" },
   { code: "ar", name: "Arabic" },
 ];
+
+/**
+ * Which of the detectable languages above are actually plausible for a given
+ * region — picking e.g. "Japanese" while browsing US trends returns a
+ * near-empty, confusing result set, since almost nothing in the US mostPopular
+ * chart has Japanese-script titles. Regions not listed here only offer "Any
+ * language" (most Latin-script-language regions aren't in TREND_LANGUAGES at
+ * all, for the same script-detection reason noted above).
+ */
+export const REGION_LANGUAGES: Record<string, string[]> = {
+  IN: ["hi", "ta"],
+  JP: ["ja"],
+  KR: ["ko"],
+  SA: ["ar"],
+};
 
 export const TREND_CATEGORIES: { id: string; name: string }[] = [
   { id: "", name: "All categories" },

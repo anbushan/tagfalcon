@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { formatCurrency } from "@/lib/currency";
 
 const statusColor: Record<string, string> = {
   active: "bg-green-100 text-green-700",
@@ -34,7 +35,7 @@ export default async function AdminPaymentDetailPage({ params }: { params: { id:
         <div className="rounded-md border p-3">
           <p className="text-xs text-gray-500">Amount paid</p>
           <p className="mt-1 font-medium">
-            {payment.amountPaise != null ? `₹${(payment.amountPaise / 100).toFixed(0)}` : "— (comped)"}
+            {payment.amountMinorUnits != null ? formatCurrency(payment.amountMinorUnits, payment.currency) : "— (comped)"}
           </p>
         </div>
         <div className="rounded-md border p-3">

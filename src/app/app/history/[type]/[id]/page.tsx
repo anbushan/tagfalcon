@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { notFound } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import ChannelAvatar from "@/components/ChannelAvatar";
 
 const VALID_TYPES = [
   "tags",
@@ -16,6 +17,7 @@ const VALID_TYPES = [
   "uploadTime",
   "compare",
   "breakout",
+  "topCreators",
 ] as const;
 
 export default async function HistoryDetailPage({
@@ -133,12 +135,7 @@ export default async function HistoryDetailPage({
   return (
     <Detail backHref="/app/history?tab=revenue" title={item.channelTitle} date={item.createdAt}>
       <div className="flex items-center gap-3">
-        {item.channelThumbnail && (
-          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-yt-dark-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={item.channelThumbnail} alt="" className="h-full w-full object-cover" />
-          </div>
-        )}
+        <ChannelAvatar src={item.channelThumbnail} name={item.channelTitle} size={56} />
         {item.category && <p className="text-sm text-gray-500 dark:text-gray-400">{item.category}</p>}
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3 text-center text-sm sm:grid-cols-4">
@@ -541,24 +538,57 @@ export default async function HistoryDetailPage({
     );
   }
 
-  const item = await prisma.breakoutVideo.findFirst({ where: { id: params.id, userId } });
+  if (params.type === "breakout") {
+    const item = await prisma.breakoutVideo.findFirst({ where: { id: params.id, userId } });
+    if (!item) notFound();
+    const breakouts = (item.breakoutsJson as any[]) || [];
+
+    return (
+      <Detail backHref="/app/history?tab=breakout" title={item.channelTitle} date={item.createdAt}>
+        <p className="text-sm text-gray-500">Channel average: {item.avgViews ? Math.round(item.avgViews) : "—"} views</p>
+        <div className="mt-4 space-y-2">
+          {breakouts.map((v: any) => (
+            <a
+              key={v.videoId}
+              href={`https://www.youtube.com/watch?v=${v.videoId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between rounded-yt border border-gray-200 p-3 text-sm hover:bg-gray-50 dark:border-yt-border dark:hover:bg-yt-dark-2"
+            >
+              <span className="line-clamp-1">{v.title}</span>
+              <span className="shrink-0 text-xs text-gray-400">{v.ratio}× avg</span>
+            </a>
+          ))}
+        </div>
+      </Detail>
+    );
+  }
+
+  const item = await prisma.topCreatorsSearch.findFirst({ where: { id: params.id, userId } });
   if (!item) notFound();
-  const breakouts = (item.breakoutsJson as any[]) || [];
+  const creators = (item.resultsJson as any[]) || [];
 
   return (
-    <Detail backHref="/app/history?tab=breakout" title={item.channelTitle} date={item.createdAt}>
-      <p className="text-sm text-gray-500">Channel average: {item.avgViews ? Math.round(item.avgViews) : "—"} views</p>
-      <div className="mt-4 space-y-2">
-        {breakouts.map((v: any) => (
+    <Detail
+      backHref="/app/history?tab=topCreators"
+      title={`${item.region}${item.categoryName ? ` · ${item.categoryName}` : ""}`}
+      date={item.createdAt}
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {creators.map((c: any, i: number) => (
           <a
-            key={v.videoId}
-            href={`https://www.youtube.com/watch?v=${v.videoId}`}
+            key={c.channelId}
+            href={`https://www.youtube.com/channel/${c.channelId}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-between rounded-yt border border-gray-200 p-3 text-sm hover:bg-gray-50 dark:border-yt-border dark:hover:bg-yt-dark-2"
+            className="flex items-center gap-3 rounded-yt border border-gray-200 p-3 text-sm hover:bg-gray-50 dark:border-yt-border dark:hover:bg-yt-dark-2"
           >
-            <span className="line-clamp-1">{v.title}</span>
-            <span className="shrink-0 text-xs text-gray-400">{v.ratio}× avg</span>
+            <span className="w-6 shrink-0 text-center text-xs text-gray-400">#{i + 1}</span>
+            <ChannelAvatar src={c.thumbnail} name={c.title} size={40} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">{c.title}</p>
+              <p className="text-xs text-gray-400">{c.subscriberCount ?? "—"} subscribers</p>
+            </div>
           </a>
         ))}
       </div>

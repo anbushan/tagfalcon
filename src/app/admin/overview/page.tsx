@@ -1,6 +1,8 @@
+import { DollarSign, CreditCard, UserPlus, Users } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import InsightLineChart from "@/components/charts/InsightLineChart";
 import InsightBarChart from "@/components/charts/InsightBarChart";
+import StatTile from "@/components/StatTile";
 
 export default async function AdminOverviewPage() {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -19,10 +21,10 @@ export default async function AdminOverviewPage() {
   }, 0);
 
   const cards = [
-    { label: "MRR", value: `$${(mrrCents / 100).toFixed(0)}` },
-    { label: "Active subscriptions", value: activeSubs.length },
-    { label: "New signups (7d)", value: newSignups7d },
-    { label: "Total users", value: totalUsers },
+    { label: "MRR", value: `$${(mrrCents / 100).toFixed(0)}`, icon: DollarSign },
+    { label: "Active subscriptions", value: activeSubs.length, icon: CreditCard },
+    { label: "New signups (7d)", value: newSignups7d, icon: UserPlus },
+    { label: "Total users", value: totalUsers, icon: Users },
   ];
 
   // Build a 7-day signup trend from raw createdAt timestamps
@@ -60,10 +62,7 @@ export default async function AdminOverviewPage() {
 
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {cards.map((card) => (
-          <div key={card.label} className="rounded-yt border border-gray-200 bg-gray-50 p-4 dark:border-yt-border dark:bg-yt-panel">
-            <p className="text-xs text-gray-500 dark:text-gray-400">{card.label}</p>
-            <p className="mt-1 text-2xl font-semibold">{card.value}</p>
-          </div>
+          <StatTile key={card.label} icon={card.icon} label={card.label} value={card.value} />
         ))}
       </div>
 

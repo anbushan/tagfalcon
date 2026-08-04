@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Search, Gauge, Users2, Target } from "lucide-react";
 import AdSlot from "@/components/AdSlot";
 import { trackEvent, trackError } from "@/lib/analytics";
 import { useLanguage } from "@/components/LanguageProvider";
 import InsightBarChart from "@/components/charts/InsightBarChart";
 import InsightPieChart from "@/components/charts/InsightPieChart";
+import StatTile from "@/components/StatTile";
+import InfoTooltip from "@/components/InfoTooltip";
+import AutocompleteInput from "@/components/AutocompleteInput";
+import StudioPreview from "@/components/StudioPreview";
 
 type Metrics = { volume: number; difficulty: number; competition: number; viabilityScore: number };
 type RelatedRow = Metrics & { keyword: string };
@@ -112,6 +117,7 @@ export default function KeywordResearchPage() {
   const [overview, setOverview] = useState<Metrics | null>(null);
   const [related, setRelated] = useState<RelatedRow[]>([]);
   const [serp, setSerp] = useState<SerpResult[]>([]);
+  const [serpError, setSerpError] = useState<string | null>(null);
   const [filterText, setFilterText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -144,6 +150,7 @@ export default function KeywordResearchPage() {
     setLoading(true);
     setError(null);
     setSerp([]);
+    setSerpError(null);
     try {
       const res = await fetch("/api/tools/keyword-research", {
         method: "POST",
@@ -163,6 +170,7 @@ export default function KeywordResearchPage() {
       setOverview(data.overview);
       setRelated(data.related);
       setSerp(data.serp || []);
+      setSerpError(data.serpError || null);
       setFilterText("");
       trackEvent("keyword_research", { related_count: data.related.length });
     } catch {
@@ -251,11 +259,13 @@ export default function KeywordResearchPage() {
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t("research.subtitle")}</p>
 
       <div className="mt-6 flex gap-2">
-        <input
-          className="flex-1 rounded-full border border-gray-300 px-4 py-2 focus:border-yt-red focus:outline-none dark:border-yt-border dark:bg-yt-dark-2"
+        <AutocompleteInput
+          type="keyword"
           placeholder={t("research.placeholder")}
           value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
+          onChange={setKeyword}
+          onPick={(v) => research(v)}
+          onEnter={() => keyword.length >= 2 && research()}
         />
         <button
           onClick={() => research()}
@@ -308,22 +318,32 @@ export default function KeywordResearchPage() {
             <div className="mt-6 space-y-6">
               <div>
                 <div className="grid grid-cols-4 gap-4">
-                  <div className="rounded-md border p-3 text-center dark:border-gray-700">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{t("research.volume")}</p>
-                    <p className="text-xl font-semibold">{overview.volume}</p>
-                  </div>
-                  <div className="rounded-md border p-3 text-center dark:border-gray-700">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{t("research.difficulty")}</p>
-                    <p className="text-xl font-semibold">{overview.difficulty}</p>
-                  </div>
-                  <div className="rounded-md border p-3 text-center dark:border-gray-700">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{t("research.competition")}</p>
-                    <p className="text-xl font-semibold">{overview.competition}</p>
-                  </div>
-                  <div className="rounded-md border p-3 text-center dark:border-gray-700">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{t("research.viability")}</p>
-                    <p className="text-xl font-semibold">{overview.viabilityScore}</p>
-                  </div>
+                  <StatTile
+                    icon={Search}
+                    label={t("research.volume")}
+                    value={overview.volume}
+                    tooltip="Rough estimate of how often people search this keyword, based on search breadth signals — not exact YouTube search volume."
+                  />
+                  <StatTile
+                    icon={Gauge}
+                    label={t("research.difficulty")}
+                    value={overview.difficulty}
+                    tone={overview.difficulty >= 70 ? "bad" : overview.difficulty >= 40 ? "warn" : "good"}
+                    tooltip="How hard it'd be to rank for this keyword — higher means more competition from established channels."
+                  />
+                  <StatTile
+                    icon={Users2}
+                    label={t("research.competition")}
+                    value={overview.competition}
+                    tooltip="How concentrated the top results are among a few channels vs. spread across many."
+                  />
+                  <StatTile
+                    icon={Target}
+                    label={t("research.viability")}
+                    value={overview.viabilityScore}
+                    tone={overview.viabilityScore >= 70 ? "good" : overview.viabilityScore >= 40 ? "warn" : "bad"}
+                    tooltip="A combined score balancing search volume against difficulty — higher means a better opportunity for a new video."
+                  />
                 </div>
                 <p className="mt-2 text-xs text-gray-400">
                   Metrics are estimates derived from search breadth, not exact YouTube analytics.
@@ -438,6 +458,17 @@ export default function KeywordResearchPage() {
                   </div>
                 </section>
               )}
+
+              <StudioPreview
+                highlight={["title", "description"]}
+                sampleTitle={keyword}
+                sampleDescription={
+                  topRelatedByVolume.length > 0
+                    ? `${keyword} — a closer look.\n\nAlso covering: ${topRelatedByVolume.map((r) => r.keyword).join(", ")}`
+                    : undefined
+                }
+                note="Work your keyword and its top related terms naturally into the title and the first couple lines of the description — that's what YouTube actually reads for relevance."
+              />
             </div>
           )}
 
@@ -504,10 +535,15 @@ export default function KeywordResearchPage() {
                     <th className="py-2">{t("research.relatedKeywords")}</th>
                     {(["volume", "difficulty", "viabilityScore"] as const).map((col) => (
                       <th key={col} className="py-2">
-                        <button onClick={() => toggleSort(col)} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-200">
-                          {t(`research.${col === "viabilityScore" ? "viability" : col}`)}
-                          {sortColumn === col && <span>{sortDir === "asc" ? "↑" : "↓"}</span>}
-                        </button>
+                        <span className="inline-flex items-center gap-1">
+                          <button onClick={() => toggleSort(col)} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-200">
+                            {t(`research.${col === "viabilityScore" ? "viability" : col}`)}
+                            {sortColumn === col && <span>{sortDir === "asc" ? "↑" : "↓"}</span>}
+                          </button>
+                          {col === "viabilityScore" && (
+                            <InfoTooltip text="Balances search volume against difficulty — higher means a better opportunity for a new video." />
+                          )}
+                        </span>
                       </th>
                     ))}
                     <th className="py-2">{t("research.saveTo")}</th>
@@ -602,7 +638,10 @@ export default function KeywordResearchPage() {
                 ))}
               </div>
 
-              {serp.length === 0 && (
+              {serp.length === 0 && serpError && (
+                <p className="mt-4 text-sm text-red-600">Couldn't load ranking videos: {serpError}</p>
+              )}
+              {serp.length === 0 && !serpError && (
                 <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">No results found.</p>
               )}
 

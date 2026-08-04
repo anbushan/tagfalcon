@@ -16,6 +16,7 @@ const LIMIT_FIELDS = [
   { key: "uploadTimeLimit", label: "Best upload time checks" },
   { key: "channelComparisonLimit", label: "Channel comparisons" },
   { key: "breakoutVideoLimit", label: "Breakout video checks" },
+  { key: "topCreatorsLimit", label: "Top creators searches" },
 ] as const;
 
 type LimitKey = (typeof LIMIT_FIELDS)[number]["key"];

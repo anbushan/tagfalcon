@@ -1,8 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { Users, Eye, Film, TrendingUp, CalendarDays, DollarSign } from "lucide-react";
 import AdSlot from "@/components/AdSlot";
 import InsightBarChart from "@/components/charts/InsightBarChart";
+import StatTile from "@/components/StatTile";
+import InfoTooltip from "@/components/InfoTooltip";
+import AutocompleteInput from "@/components/AutocompleteInput";
+import ChannelAvatar from "@/components/ChannelAvatar";
 import { trackEvent, trackError } from "@/lib/analytics";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -34,6 +39,9 @@ type Report = {
   estRevenueLowUsd: number;
   estRevenueHighUsd: number;
   recentVideos: RecentVideo[];
+  yearlyBreakdown: { year: number; videoCount: number; totalViews: number; estRevenueLowUsd: number; estRevenueHighUsd: number }[];
+  yearlySampleSize: number;
+  yearlySampleTruncated: boolean;
 };
 
 function youtubeVideoUrl(videoId: string) {
@@ -114,12 +122,13 @@ export default function RevenueReportPage() {
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t("revenueReport.subtitle")}</p>
 
       <div className="mt-6 flex gap-2">
-        <input
-          className="flex-1 rounded-full border border-gray-300 px-4 py-2 focus:border-yt-red focus:outline-none dark:border-yt-border dark:bg-yt-dark-2"
+        <AutocompleteInput
+          type="channel"
           placeholder={t("revenueReport.placeholder")}
           value={channelUrl}
-          onChange={(e) => setChannelUrl(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !loading && channelUrl.trim().length >= 2 && analyze()}
+          onChange={setChannelUrl}
+          onPick={(v) => analyze(v)}
+          onEnter={() => channelUrl.trim().length >= 2 && analyze()}
         />
         <button
           onClick={() => analyze()}
@@ -152,12 +161,7 @@ export default function RevenueReportPage() {
       {report && (
         <div className="mt-6">
           <div className="flex items-center gap-3 rounded-yt border border-gray-200 p-4 dark:border-yt-border">
-            {report.channelThumbnail && (
-              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-yt-dark-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={report.channelThumbnail} alt="" className="h-full w-full object-cover" />
-              </div>
-            )}
+            <ChannelAvatar src={report.channelThumbnail} name={report.channelTitle} size={64} />
             <div className="min-w-0">
               <a
                 href={youtubeChannelUrl(report)}
@@ -220,24 +224,56 @@ export default function RevenueReportPage() {
           )}
 
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Stat label={t("revenueReport.subscribers")} value={report.subscriberCount != null ? compactNumber.format(report.subscriberCount) : "—"} />
-            <Stat label={t("revenueReport.totalViews")} value={compactNumber.format(report.totalViewCount)} />
-            <Stat label={t("revenueReport.videos")} value={String(report.videoCount)} />
-            <Stat label={t("revenueReport.avgViews")} value={compactNumber.format(report.avgViewsRecent)} />
-            <Stat label={t("revenueReport.estMonthlyViews")} value={compactNumber.format(report.estMonthlyViews)} />
-            <Stat
+            <StatTile icon={Users} label={t("revenueReport.subscribers")} value={report.subscriberCount != null ? compactNumber.format(report.subscriberCount) : "—"} />
+            <StatTile icon={Eye} label={t("revenueReport.totalViews")} value={compactNumber.format(report.totalViewCount)} />
+            <StatTile icon={Film} label={t("revenueReport.videos")} value={String(report.videoCount)} />
+            <StatTile
+              icon={TrendingUp}
+              label={t("revenueReport.avgViews")}
+              value={compactNumber.format(report.avgViewsRecent)}
+              tooltip="Average views across this channel's most recent uploads."
+            />
+            <StatTile
+              icon={TrendingUp}
+              label={t("revenueReport.estMonthlyViews")}
+              value={compactNumber.format(report.estMonthlyViews)}
+              tooltip="Rough projection based on recent upload views and frequency — not YouTube Analytics data."
+            />
+            <StatTile
+              icon={CalendarDays}
               label={t("revenueReport.channelStartDate")}
               value={report.channelStartDate ? new Date(report.channelStartDate).toLocaleDateString() : "—"}
             />
           </div>
 
           <div className="mt-4 rounded-yt border border-gray-200 bg-gray-50 p-5 text-center dark:border-yt-border dark:bg-yt-dark-2">
-            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{t("revenueReport.estMonthlyRevenue")}</p>
+            <p className="flex items-center justify-center gap-1.5 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              <DollarSign size={14} />
+              {t("revenueReport.estMonthlyRevenue")}
+              <InfoTooltip text="A rough range based on this channel's recent view volume and category, using public rough CPM benchmarks — not real ad revenue data, which only YouTube and the channel owner can see." />
+            </p>
             <p className="mt-1 text-3xl font-bold text-yt-red">
               {usd.format(report.estRevenueLowUsd)} – {usd.format(report.estRevenueHighUsd)}
             </p>
             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{t("revenueReport.disclaimer")}</p>
           </div>
+
+          {report.yearlyBreakdown.length > 1 && (
+            <div className="mt-4 rounded-yt border border-gray-200 p-4 dark:border-yt-border">
+              <p className="text-sm font-medium">{t("revenueReport.yearlyRevenue")}</p>
+              <InsightBarChart
+                data={report.yearlyBreakdown.map((y) => ({
+                  name: String(y.year),
+                  value: Math.round((y.estRevenueLowUsd + y.estRevenueHighUsd) / 2),
+                }))}
+                height={200}
+              />
+              <p className="mt-2 text-xs text-gray-400">
+                {t("revenueReport.yearlyRevenueNote")}
+                {report.yearlySampleTruncated && ` ${t("revenueReport.yearlyRevenueTruncated")}`}
+              </p>
+            </div>
+          )}
 
           {topVideos.length > 0 && (
             <div className="mt-4">
@@ -303,14 +339,5 @@ export default function RevenueReportPage() {
 
       <AdSlot slot="7777777777" />
     </main>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-yt border border-gray-200 p-3 text-center dark:border-yt-border">
-      <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="text-lg font-semibold">{value}</p>
-    </div>
   );
 }

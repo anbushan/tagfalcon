@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import AdSlot from "@/components/AdSlot";
+import AutocompleteInput from "@/components/AutocompleteInput";
+import StudioPreview from "@/components/StudioPreview";
 import { trackEvent, trackError } from "@/lib/analytics";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -62,12 +64,13 @@ export default function HashtagGeneratorPage() {
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t("hashtags.subtitle")}</p>
 
       <div className="mt-6 flex gap-2">
-        <input
-          className="flex-1 rounded-full border border-gray-300 px-4 py-2 focus:border-yt-red focus:outline-none dark:border-yt-border dark:bg-yt-dark-2"
+        <AutocompleteInput
+          type="keyword"
           placeholder={t("hashtags.placeholder")}
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !loading && query.length >= 2 && generate()}
+          onChange={setQuery}
+          onPick={(v) => generate(v)}
+          onEnter={() => !loading && query.length >= 2 && generate()}
         />
         <button
           onClick={() => generate()}
@@ -128,6 +131,15 @@ export default function HashtagGeneratorPage() {
               </div>
             </div>
           )}
+
+          <div className="mt-6">
+            <StudioPreview
+              highlight={["description"]}
+              sampleTitle={query}
+              sampleDescription={`${query}\n\n${recommended.slice(0, 3).join(" ")}`}
+              note='YouTube shows up to 3 "#hashtags" from your title or description above the video title — the rest just help with search.'
+            />
+          </div>
         </div>
       )}
 

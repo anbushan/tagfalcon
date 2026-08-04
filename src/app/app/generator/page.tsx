@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import AdSlot from "@/components/AdSlot";
+import AutocompleteInput from "@/components/AutocompleteInput";
+import StudioPreview from "@/components/StudioPreview";
 import { trackEvent, trackError } from "@/lib/analytics";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -58,11 +60,13 @@ export default function TagGeneratorPage() {
       <p className="mt-1 text-sm text-gray-600">{t("generator.subtitle")}</p>
 
       <div className="mt-6 flex gap-2">
-        <input
-          className="flex-1 rounded-full border border-gray-300 px-4 py-2 focus:border-yt-red focus:outline-none dark:border-yt-border dark:bg-yt-dark-2"
+        <AutocompleteInput
+          type="keyword"
           placeholder={t("generator.placeholder")}
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={setQuery}
+          onPick={(v) => generateTags(v)}
+          onEnter={() => query.length >= 2 && generateTags()}
         />
         <button
           onClick={() => generateTags()}
@@ -107,6 +111,10 @@ export default function TagGeneratorPage() {
           >
             {t("generator.copyAll")}
           </button>
+
+          <div className="mt-6">
+            <StudioPreview highlight={["tags"]} sampleTitle={query} sampleTags={tags} />
+          </div>
         </div>
       )}
 

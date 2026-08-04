@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Video, TrendingUp, BarChart3, LogIn, Search, ClipboardCheck } from "lucide-react";
 import HeroCTA from "@/components/HeroCTA";
 import { prisma } from "@/lib/prisma";
 import { getSetting } from "@/lib/settings";
@@ -160,19 +161,28 @@ export default async function LandingPage() {
       {/* Feature grid */}
       <section className="mx-auto max-w-5xl grid grid-cols-1 gap-8 border-t border-gray-100 px-6 py-16 dark:border-yt-border sm:grid-cols-3">
         <div>
-          <h3 className="font-semibold">Real YouTube data</h3>
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-yt-red dark:bg-red-900/30">
+            <Video size={20} />
+          </span>
+          <h3 className="mt-3 font-semibold">Real YouTube data</h3>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Tags are ranked from live autocomplete and search data, not guesswork.
           </p>
         </div>
         <div>
-          <h3 className="font-semibold">Keyword research</h3>
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+            <TrendingUp size={20} />
+          </span>
+          <h3 className="mt-3 font-semibold">Keyword research</h3>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             See estimated volume, difficulty, and viability for hundreds of related keywords.
           </p>
         </div>
         <div>
-          <h3 className="font-semibold">Rank tracking</h3>
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">
+            <BarChart3 size={20} />
+          </span>
+          <h3 className="mt-3 font-semibold">Rank tracking</h3>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Check exactly where your video ranks for any keyword.
           </p>
@@ -275,17 +285,23 @@ export default async function LandingPage() {
           <h2 className="text-center text-2xl font-semibold">How it works</h2>
           <div className="mt-10 grid grid-cols-1 gap-10 sm:grid-cols-3">
             <div className="text-center">
-              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-yt-red font-semibold text-white">1</div>
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-yt-red text-white">
+                <LogIn size={22} />
+              </div>
               <h3 className="mt-4 font-medium">Sign in with Google</h3>
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Takes 10 seconds, no card required for the free plan.</p>
             </div>
             <div className="text-center">
-              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-yt-red font-semibold text-white">2</div>
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-yt-red text-white">
+                <Search size={22} />
+              </div>
               <h3 className="mt-4 font-medium">Paste a title or keyword</h3>
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">We pull live YouTube data and rank the best tags for it.</p>
             </div>
             <div className="text-center">
-              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-yt-red font-semibold text-white">3</div>
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-yt-red text-white">
+                <ClipboardCheck size={22} />
+              </div>
               <h3 className="mt-4 font-medium">Copy into YouTube Studio</h3>
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">One click to copy all tags, or export your keyword lists as CSV.</p>
             </div>

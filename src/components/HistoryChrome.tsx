@@ -15,6 +15,7 @@ const TAB_KEYS = [
   "uploadTime",
   "compare",
   "breakout",
+  "topCreators",
 ] as const;
 
 export function HistoryTitle() {

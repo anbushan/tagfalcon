@@ -24,6 +24,9 @@ export type ChannelWithVideos = {
   channelId: string;
   channelTitle: string;
   channelThumbnail: string | null;
+  subscriberCount: number | null;
+  totalViewCount: number;
+  videoCount: number;
   videos: ChannelVideo[];
 };
 
@@ -33,7 +36,7 @@ export async function fetchChannelWithRecentVideos(
   apiKey: string,
   sampleSize = 20
 ): Promise<ChannelWithVideos | ApiError | NotFound> {
-  const channelData = await ytFetch(`/channels?part=snippet,contentDetails&id=${channelId}`, apiKey);
+  const channelData = await ytFetch(`/channels?part=snippet,statistics,contentDetails&id=${channelId}`, apiKey);
   if ("apiError" in channelData) return channelData;
   const channel = channelData?.items?.[0];
   if (!channel) return { notFound: true };
@@ -72,6 +75,9 @@ export async function fetchChannelWithRecentVideos(
     channelId,
     channelTitle: channel.snippet?.title || "Unknown channel",
     channelThumbnail: channel.snippet?.thumbnails?.medium?.url || channel.snippet?.thumbnails?.default?.url || null,
+    subscriberCount: channel.statistics?.hiddenSubscriberCount ? null : Number(channel.statistics?.subscriberCount || 0),
+    totalViewCount: Number(channel.statistics?.viewCount || 0),
+    videoCount: Number(channel.statistics?.videoCount || 0),
     videos,
   };
 }

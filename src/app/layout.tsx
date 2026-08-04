@@ -6,6 +6,9 @@ import GoogleAnalyticsScript from "@/components/GoogleAnalyticsScript";
 import PageviewTracker from "@/components/PageviewTracker";
 import FeedbackButton from "@/components/FeedbackButton";
 import PWARegister from "@/components/PWARegister";
+import { isProductionDeployment } from "@/lib/env";
+
+const isProd = isProductionDeployment();
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL || "http://localhost:3000"),
@@ -15,6 +18,12 @@ export const metadata: Metadata = {
   },
   description:
     "Generate SEO-optimized YouTube tags, research keywords, and check video rankings with TagFalcon.",
+  // Only the real production deployment should ever be indexed — preview/dev
+  // deployments (Vercel preview URLs, localhost) get a blanket noindex so
+  // Google doesn't crawl or rank a non-production URL.
+  robots: isProd
+    ? { index: true, follow: true }
+    : { index: false, follow: false, nocache: true },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

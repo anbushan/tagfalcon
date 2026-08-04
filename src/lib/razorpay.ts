@@ -25,11 +25,12 @@ export type RazorpayOrder = {
 };
 
 /**
- * Creates a one-time Razorpay Order. `amountPaise` must be an integer in the
- * smallest currency unit (paise for INR) — same convention as Stripe cents.
+ * Creates a one-time Razorpay Order. `amount` must be an integer in the
+ * smallest unit of `currency` (paise for INR, cents for USD, whole yen for
+ * JPY, ...) — same convention as Stripe cents.
  */
 export async function createRazorpayOrder(params: {
-  amountPaise: number;
+  amount: number;
   currency: string;
   receipt: string;
   notes: Record<string, string>;
@@ -44,7 +45,7 @@ export async function createRazorpayOrder(params: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      amount: params.amountPaise,
+      amount: params.amount,
       currency: params.currency,
       receipt: params.receipt,
       notes: params.notes,

@@ -23,7 +23,7 @@ export async function logAdminAction(
   action: string,
   targetType: string,
   targetId: string,
-  meta: Record<string, unknown> = {}
+  meta: Record<string, any> = {}
 ) {
   await prisma.auditLog.create({
     data: { adminId, action, targetType, targetId, metaJson: meta },

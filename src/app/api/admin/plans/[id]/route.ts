@@ -19,6 +19,7 @@ const bodySchema = z.object({
   uploadTimeLimit: z.number().int().min(0).optional(),
   channelComparisonLimit: z.number().int().min(0).optional(),
   breakoutVideoLimit: z.number().int().min(0).optional(),
+  topCreatorsLimit: z.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
 });
 

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import Pagination, { paginationParams } from "@/components/Pagination";
+import { formatCurrency } from "@/lib/currency";
 
-const SORT_COLUMNS = ["createdAt", "amountPaise", "status"] as const;
+const SORT_COLUMNS = ["createdAt", "amountMinorUnits", "status"] as const;
 type SortColumn = (typeof SORT_COLUMNS)[number];
 
 function isSortColumn(value: string | undefined): value is SortColumn {
@@ -97,7 +98,7 @@ export default async function AdminPaymentsPage({
           <tr className="border-b text-left text-gray-500">
             <th className="py-2">User</th>
             <th className="py-2">Plan</th>
-            <SortHeader column="amountPaise" label="Amount" />
+            <SortHeader column="amountMinorUnits" label="Amount" />
             <SortHeader column="status" label="Status" />
             <SortHeader column="createdAt" label="Paid on" />
             <th className="py-2">Active until</th>
@@ -112,7 +113,9 @@ export default async function AdminPaymentsPage({
                 </Link>
               </td>
               <td className="py-2">{p.plan.name}</td>
-              <td className="py-2">{p.amountPaise != null ? `₹${(p.amountPaise / 100).toFixed(0)}` : "— (comped)"}</td>
+              <td className="py-2">
+                {p.amountMinorUnits != null ? formatCurrency(p.amountMinorUnits, p.currency) : "— (comped)"}
+              </td>
               <td className="py-2">
                 <span className={`rounded-full px-2 py-0.5 text-xs ${statusColor[p.status] ?? ""}`}>
                   {p.status}

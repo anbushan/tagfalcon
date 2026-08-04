@@ -18,6 +18,7 @@ const TABS = [
   "uploadTime",
   "compare",
   "breakout",
+  "topCreators",
 ] as const;
 
 export default async function HistoryPage({
@@ -182,7 +183,7 @@ export default async function HistoryPage({
       secondary: "Channel comparison",
       date: i.createdAt,
     }));
-  } else {
+  } else if (tab === "breakout") {
     const where = { userId, ...(q ? { channelTitle: { contains: q, mode: "insensitive" as const } } : {}) };
     const [items, count] = await Promise.all([
       prisma.breakoutVideo.findMany({ where, orderBy: { createdAt: "desc" }, skip, take }),
@@ -195,6 +196,19 @@ export default async function HistoryPage({
       secondary: `${(i.breakoutsJson as any[]).filter((v: any) => v.status === "breakout").length} breakout videos found`,
       date: i.createdAt,
       thumbnail: i.channelThumbnail ?? undefined,
+    }));
+  } else {
+    const where = { userId, ...(q ? { region: { contains: q, mode: "insensitive" as const } } : {}) };
+    const [items, count] = await Promise.all([
+      prisma.topCreatorsSearch.findMany({ where, orderBy: { createdAt: "desc" }, skip, take }),
+      prisma.topCreatorsSearch.count({ where }),
+    ]);
+    totalCount = count;
+    rows = items.map((i) => ({
+      id: i.id,
+      primary: `${i.region}${i.categoryName ? ` · ${i.categoryName}` : ""}`,
+      secondary: `${(i.resultsJson as any[]).length} channels`,
+      date: i.createdAt,
     }));
   }
 

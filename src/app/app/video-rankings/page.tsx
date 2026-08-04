@@ -3,6 +3,8 @@
 import { useState } from "react";
 import AdSlot from "@/components/AdSlot";
 import InsightBarChart from "@/components/charts/InsightBarChart";
+import InfoTooltip from "@/components/InfoTooltip";
+import AutocompleteInput from "@/components/AutocompleteInput";
 import { trackEvent, trackError } from "@/lib/analytics";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -83,11 +85,13 @@ export default function VideoRankingsPage() {
       </p>
 
       <div className="mt-6 flex gap-2">
-        <input
-          className="flex-1 rounded-full border border-gray-300 px-4 py-2 focus:border-yt-red focus:outline-none dark:border-yt-border dark:bg-yt-dark-2"
+        <AutocompleteInput
+          type="video"
           placeholder="https://www.youtube.com/watch?v=..."
           value={videoUrl}
-          onChange={(e) => setVideoUrl(e.target.value)}
+          onChange={setVideoUrl}
+          onPick={(v) => analyze(v)}
+          onEnter={() => videoUrl.trim().length >= 5 && analyze()}
         />
         <button
           onClick={() => analyze()}
@@ -142,7 +146,12 @@ export default function VideoRankingsPage() {
                 <tr className="border-b text-left text-gray-500 dark:border-yt-border dark:text-gray-400">
                   <th className="py-2">{t("rankings.rank")}</th>
                   <th className="py-2">{t("rankings.keyword")}</th>
-                  <th className="py-2">{t("rankings.source")}</th>
+                  <th className="py-2">
+                    <span className="inline-flex items-center gap-1">
+                      {t("rankings.source")}
+                      <InfoTooltip text="Whether this keyword was found in the video's title or in its tags — titles carry more ranking weight." />
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>

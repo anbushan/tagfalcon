@@ -49,6 +49,7 @@ export default async function BillingPage() {
           { key: "uploadTimeChecks", used: usage?.uploadTimeCount ?? 0, limit: plan?.uploadTimeLimit ?? "—" },
           { key: "channelComparisons", used: usage?.channelComparisonCount ?? 0, limit: plan?.channelComparisonLimit ?? "—" },
           { key: "breakoutChecks", used: usage?.breakoutVideoCount ?? 0, limit: plan?.breakoutVideoLimit ?? "—" },
+          { key: "topCreators", used: usage?.topCreatorsCount ?? 0, limit: plan?.topCreatorsLimit ?? "—" },
         ]}
       />
 

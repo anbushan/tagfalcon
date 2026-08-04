@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { CheckCircle2, AlertTriangle, ChevronDown } from "lucide-react";
 import AdSlot from "@/components/AdSlot";
+import ScoreGauge from "@/components/ScoreGauge";
+import AutocompleteInput from "@/components/AutocompleteInput";
 import { trackEvent, trackError } from "@/lib/analytics";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -32,12 +35,6 @@ const SUGGESTIONS = [
   "https://www.youtube.com/watch?v=9bZkp7q19f0",
   "https://www.youtube.com/watch?v=jNQXAC9IVRw",
 ];
-
-function scoreColor(score: number) {
-  if (score >= 80) return "text-green-600 dark:text-green-400";
-  if (score >= 50) return "text-amber-600 dark:text-amber-400";
-  return "text-yt-red";
-}
 
 export default function OptimizationPage() {
   const { t } = useLanguage();
@@ -150,12 +147,13 @@ export default function OptimizationPage() {
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t("optimization.subtitle")}</p>
 
       <div className="mt-6 flex gap-2">
-        <input
-          className="flex-1 rounded-full border border-gray-300 px-4 py-2 focus:border-yt-red focus:outline-none dark:border-yt-border dark:bg-yt-dark-2"
+        <AutocompleteInput
+          type="video"
           placeholder="https://www.youtube.com/watch?v=..."
           value={videoUrl}
-          onChange={(e) => setVideoUrl(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !loading && videoUrl.trim().length >= 5 && analyze()}
+          onChange={setVideoUrl}
+          onPick={(v) => analyze(v)}
+          onEnter={() => videoUrl.trim().length >= 5 && analyze()}
         />
         <button
           onClick={() => analyze()}
@@ -198,8 +196,8 @@ export default function OptimizationPage() {
               <p className="line-clamp-2 text-sm font-medium leading-snug">{result.videoTitle}</p>
             </div>
             <div className="shrink-0 text-center">
-              <p className={`text-3xl font-bold ${scoreColor(result.score)}`}>{result.score}</p>
-              <p className="text-xs text-gray-400">{t("optimization.score")}</p>
+              <ScoreGauge score={result.score} />
+              <p className="mt-1 text-xs text-gray-400">{t("optimization.score")}</p>
             </div>
           </div>
 
@@ -213,21 +211,14 @@ export default function OptimizationPage() {
                     className="flex w-full items-center gap-2 p-3 text-left text-sm"
                   >
                     <span
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs text-white ${
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white ${
                         item.passed ? "bg-green-500" : "bg-amber-500"
                       }`}
                     >
-                      {item.passed ? "✓" : "!"}
+                      {item.passed ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
                     </span>
                     <span className="flex-1 font-medium">{item.label}</span>
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      className={`shrink-0 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
-                    >
-                      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                    <ChevronDown size={16} className={`shrink-0 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                   </button>
                   <p className="px-3 pb-3 pl-10 text-xs text-gray-500 dark:text-gray-400">{item.message}</p>
                   {isOpen && (

@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { CalendarDays, Clock3 } from "lucide-react";
 import AdSlot from "@/components/AdSlot";
 import InsightBarChart from "@/components/charts/InsightBarChart";
+import InfoTooltip from "@/components/InfoTooltip";
+import AutocompleteInput from "@/components/AutocompleteInput";
+import ChannelAvatar from "@/components/ChannelAvatar";
 import { trackEvent, trackError } from "@/lib/analytics";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -75,12 +79,13 @@ export default function UploadTimePage() {
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t("uploadTime.subtitle")}</p>
 
       <div className="mt-6 flex gap-2">
-        <input
-          className="flex-1 rounded-full border border-gray-300 px-4 py-2 focus:border-yt-red focus:outline-none dark:border-yt-border dark:bg-yt-dark-2"
+        <AutocompleteInput
+          type="channel"
           placeholder="https://www.youtube.com/@channelname"
           value={channelUrl}
-          onChange={(e) => setChannelUrl(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !loading && channelUrl.trim().length >= 2 && analyze()}
+          onChange={setChannelUrl}
+          onPick={(v) => analyze(v)}
+          onEnter={() => channelUrl.trim().length >= 2 && analyze()}
         />
         <button
           onClick={() => analyze()}
@@ -113,22 +118,25 @@ export default function UploadTimePage() {
       {result && (
         <div className="mt-6">
           <div className="flex items-center gap-3 rounded-yt border border-gray-200 p-4 dark:border-yt-border">
-            {result.channelThumbnail && (
-              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-yt-dark-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={result.channelThumbnail} alt="" className="h-full w-full object-cover" />
-              </div>
-            )}
+            <ChannelAvatar src={result.channelThumbnail} name={result.channelTitle} size={64} />
             <p className="min-w-0 flex-1 truncate text-lg font-semibold">{result.channelTitle}</p>
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
             <div className="rounded-yt border border-gray-200 bg-gray-50 p-4 text-center dark:border-yt-border dark:bg-yt-dark-2">
-              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{t("uploadTime.bestDay")}</p>
+              <p className="flex items-center justify-center gap-1 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <CalendarDays size={13} />
+                {t("uploadTime.bestDay")}
+                <InfoTooltip text="The day of the week whose uploads averaged the most views in the sample." />
+              </p>
               <p className="mt-1 text-2xl font-bold text-yt-red">{result.bestDay ?? "—"}</p>
             </div>
             <div className="rounded-yt border border-gray-200 bg-gray-50 p-4 text-center dark:border-yt-border dark:bg-yt-dark-2">
-              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{t("uploadTime.bestTime")}</p>
+              <p className="flex items-center justify-center gap-1 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <Clock3 size={13} />
+                {t("uploadTime.bestTime")}
+                <InfoTooltip text="The time-of-day window (UTC) whose uploads averaged the most views in the sample." />
+              </p>
               <p className="mt-1 text-lg font-bold text-yt-red">{result.bestBucket ?? "—"}</p>
             </div>
           </div>

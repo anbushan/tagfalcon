@@ -63,6 +63,7 @@ model User {
   bestUploadTimes    BestUploadTime[]
   channelComparisons ChannelComparison[]
   breakoutVideos     BreakoutVideo[]
+  topCreatorsSearches TopCreatorsSearch[]
   auditLogs        AuditLog[]
   blogPosts        BlogPost[]
   notifications    Notification[]
@@ -88,6 +89,7 @@ model Plan {
   uploadTimeLimit        Int      @default(10)
   channelComparisonLimit Int      @default(10)
   breakoutVideoLimit     Int      @default(10)
+  topCreatorsLimit       Int      @default(10)
   featuresJson           Json     @default("{}")
   isActive               Boolean  @default(true)
 
@@ -102,7 +104,8 @@ model Subscription {
   user                 User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   razorpayOrderId      String?         @unique
   razorpayPaymentId    String?
-  amountPaise          Int?
+  amountMinorUnits     Int?
+  currency             String          @default("INR")
   planId               String
   plan                 Plan            @relation(fields: [planId], references: [id])
   status               SubStatus       @default(active)
@@ -130,6 +133,7 @@ model UsageDaily {
   uploadTimeCount        Int   @default(0)
   channelComparisonCount Int   @default(0)
   breakoutVideoCount     Int   @default(0)
+  topCreatorsCount       Int   @default(0)
 
   @@unique([userId, date])
   @@map("usage_daily")
@@ -243,6 +247,20 @@ model TrendSearch {
 
   @@index([userId])
   @@map("trend_searches")
+}
+
+model TopCreatorsSearch {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  region       String
+  categoryId   String?
+  categoryName String?
+  resultsJson  Json     @default("[]")
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@map("top_creators_searches")
 }
 
 model VideoOptimization {

@@ -49,7 +49,8 @@ export async function activateSubscriptionFromOrder(order: RazorpayOrder, paymen
       currentPeriodEnd,
       razorpayOrderId: order.id,
       razorpayPaymentId: paymentId,
-      amountPaise: order.amount,
+      amountMinorUnits: order.amount,
+      currency: order.currency,
     },
   });
 }

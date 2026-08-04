@@ -33,6 +33,8 @@ const MONETIZED_VIEW_SHARE = 0.4;
 
 const RECENT_VIDEO_SAMPLE = 10;
 const MS_PER_DAY = 86_400_000;
+const YEARLY_SAMPLE_MAX_PAGES = 4;
+const YEARLY_PAGE_SIZE = 50;
 
 const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
 const URL_REGEX = /https?:\/\/[^\s)]+/gi;
@@ -149,6 +151,85 @@ export type RecentVideo = {
   publishedAt: string;
 };
 
+export type YearlyBreakdown = {
+  year: number;
+  videoCount: number;
+  totalViews: number;
+  estRevenueLowUsd: number;
+  estRevenueHighUsd: number;
+};
+
+/**
+ * Buckets a broader sample of uploads by year for the "revenue over time"
+ * chart. Paginates the uploads playlist up to YEARLY_SAMPLE_MAX_PAGES pages
+ * (cheap — playlistItems/videos.list are 1 quota unit per call, unlike
+ * search.list) rather than the 10-video sample used for the rest of the
+ * report. For channels with more uploads than the sample covers, this skews
+ * toward the most recent years — `truncated` tells the caller that happened
+ * so the UI can disclose it instead of implying full channel history.
+ */
+async function fetchYearlyBreakdown(
+  uploadsPlaylistId: string,
+  apiKey: string,
+  rpmLow: number,
+  rpmHigh: number
+): Promise<{ breakdown: YearlyBreakdown[]; sampleSize: number; truncated: boolean }> {
+  const yearTotals = new Map<number, { views: number; count: number }>();
+  let pageToken: string | undefined;
+  let sampleSize = 0;
+  let truncated = false;
+
+  for (let page = 0; page < YEARLY_SAMPLE_MAX_PAGES; page++) {
+    const playlistData = await ytFetch(
+      `/playlistItems?part=contentDetails&maxResults=${YEARLY_PAGE_SIZE}&playlistId=${uploadsPlaylistId}${
+        pageToken ? `&pageToken=${pageToken}` : ""
+      }`,
+      apiKey
+    );
+    if ("apiError" in playlistData) break;
+
+    const videoIds: string[] = (playlistData?.items || [])
+      .map((i: any) => i.contentDetails?.videoId)
+      .filter(Boolean);
+
+    if (videoIds.length > 0) {
+      const videosData = await ytFetch(`/videos?part=snippet,statistics&id=${videoIds.join(",")}`, apiKey);
+      if (!("apiError" in videosData)) {
+        for (const v of videosData?.items || []) {
+          const publishedAt = v.snippet?.publishedAt;
+          if (!publishedAt) continue;
+          const year = new Date(publishedAt).getFullYear();
+          const views = Number(v.statistics?.viewCount || 0);
+          const entry = yearTotals.get(year) || { views: 0, count: 0 };
+          entry.views += views;
+          entry.count += 1;
+          yearTotals.set(year, entry);
+          sampleSize++;
+        }
+      }
+    }
+
+    pageToken = playlistData?.nextPageToken;
+    if (!pageToken) break;
+    if (page === YEARLY_SAMPLE_MAX_PAGES - 1) truncated = true;
+  }
+
+  const breakdown: YearlyBreakdown[] = [...yearTotals.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([year, { views, count }]) => {
+      const monetizedViews = views * MONETIZED_VIEW_SHARE;
+      return {
+        year,
+        videoCount: count,
+        totalViews: views,
+        estRevenueLowUsd: Math.round((monetizedViews / 1000) * rpmLow),
+        estRevenueHighUsd: Math.round((monetizedViews / 1000) * rpmHigh),
+      };
+    });
+
+  return { breakdown, sampleSize, truncated };
+}
+
 export type RevenueReportData = {
   channelId: string;
   channelTitle: string;
@@ -168,6 +249,9 @@ export type RevenueReportData = {
   estRevenueLowUsd: number;
   estRevenueHighUsd: number;
   recentVideos: RecentVideo[];
+  yearlyBreakdown: YearlyBreakdown[];
+  yearlySampleSize: number;
+  yearlySampleTruncated: boolean;
 };
 
 export async function buildRevenueReport(
@@ -249,6 +333,10 @@ export async function buildRevenueReport(
   const channelDescription: string = channel.snippet?.description || "";
   const { email: contactEmail, socialLinks } = extractContactInfo(channelDescription);
 
+  const yearly = uploadsPlaylistId
+    ? await fetchYearlyBreakdown(uploadsPlaylistId, apiKey, rpmLow, rpmHigh)
+    : { breakdown: [], sampleSize: 0, truncated: false };
+
   return {
     channelId,
     channelTitle: channel.snippet?.title || "Unknown channel",
@@ -268,5 +356,8 @@ export async function buildRevenueReport(
     estRevenueLowUsd,
     estRevenueHighUsd,
     recentVideos,
+    yearlyBreakdown: yearly.breakdown,
+    yearlySampleSize: yearly.sampleSize,
+    yearlySampleTruncated: yearly.truncated,
   };
 }

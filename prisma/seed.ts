@@ -23,6 +23,7 @@ async function main() {
       uploadTimeLimit: 5,
       channelComparisonLimit: 5,
       breakoutVideoLimit: 5,
+      topCreatorsLimit: 5,
       featuresJson: { history: false, export: false },
     },
     {
@@ -42,6 +43,7 @@ async function main() {
       uploadTimeLimit: 15,
       channelComparisonLimit: 15,
       breakoutVideoLimit: 15,
+      topCreatorsLimit: 15,
       featuresJson: { history: true, export: true },
     },
     {
@@ -61,6 +63,7 @@ async function main() {
       uploadTimeLimit: 100,
       channelComparisonLimit: 100,
       breakoutVideoLimit: 100,
+      topCreatorsLimit: 100,
       featuresJson: { history: true, export: true, priority_support: true },
     },
   ];

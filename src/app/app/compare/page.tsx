@@ -3,6 +3,9 @@
 import { useState } from "react";
 import AdSlot from "@/components/AdSlot";
 import InsightBarChart from "@/components/charts/InsightBarChart";
+import InfoTooltip from "@/components/InfoTooltip";
+import AutocompleteInput from "@/components/AutocompleteInput";
+import ChannelAvatar from "@/components/ChannelAvatar";
 import { trackEvent, trackError } from "@/lib/analytics";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -23,6 +26,12 @@ type Result = { a: Side; b: Side };
 
 const compactNumber = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 
+const SUGGESTIONS: [string, string][] = [
+  ["https://www.youtube.com/@MrBeast", "https://www.youtube.com/@MrBeastGaming"],
+  ["@mkbhd", "@UnboxTherapy"],
+  ["@veritasium", "@vsauce"],
+];
+
 export default function ComparePage() {
   const { t } = useLanguage();
   const [urlA, setUrlA] = useState("");
@@ -31,7 +40,11 @@ export default function ComparePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function compare() {
+  async function compare(overrideA?: string, overrideB?: string) {
+    const targetA = overrideA ?? urlA;
+    const targetB = overrideB ?? urlB;
+    if (overrideA) setUrlA(overrideA);
+    if (overrideB) setUrlB(overrideB);
     setLoading(true);
     setError(null);
     setResult(null);
@@ -39,7 +52,7 @@ export default function ComparePage() {
       const res = await fetch("/api/tools/channel-comparison", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelUrlA: urlA, channelUrlB: urlB }),
+        body: JSON.stringify({ channelUrlA: targetA, channelUrlB: targetB }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -69,14 +82,22 @@ export default function ComparePage() {
     }
   }
 
-  const rows: { label: string; format: (s: Side) => string }[] = result
+  const rows: { label: string; tooltip?: string; format: (s: Side) => string }[] = result
     ? [
         { label: t("compare.subscribers"), format: (s) => (s.subscriberCount != null ? compactNumber.format(s.subscriberCount) : "—") },
         { label: t("compare.totalViews"), format: (s) => compactNumber.format(s.totalViewCount) },
         { label: t("compare.videos"), format: (s) => String(s.videoCount) },
         { label: t("compare.avgRecentViews"), format: (s) => compactNumber.format(s.avgRecentViews) },
-        { label: t("compare.uploadGap"), format: (s) => (s.avgUploadGapDays != null ? `${s.avgUploadGapDays.toFixed(1)}d` : "—") },
-        { label: t("compare.engagement"), format: (s) => `${(s.engagementRate * 100).toFixed(1)}%` },
+        {
+          label: t("compare.uploadGap"),
+          tooltip: "Average number of days between recent uploads — lower and more regular tends to help growth.",
+          format: (s) => (s.avgUploadGapDays != null ? `${s.avgUploadGapDays.toFixed(1)}d` : "—"),
+        },
+        {
+          label: t("compare.engagement"),
+          tooltip: "Share of views that turn into a like or comment. ~2% is a rough healthy benchmark.",
+          format: (s) => `${(s.engagementRate * 100).toFixed(1)}%`,
+        },
         { label: t("compare.trend"), format: (s) => t(`audit.trend_${s.viewsTrend}`) },
       ]
     : [];
@@ -87,26 +108,45 @@ export default function ComparePage() {
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t("compare.subtitle")}</p>
 
       <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <input
-          className="rounded-full border border-gray-300 px-4 py-2 focus:border-yt-red focus:outline-none dark:border-yt-border dark:bg-yt-dark-2"
+        <AutocompleteInput
+          type="channel"
           placeholder="Channel A — https://www.youtube.com/@channelname"
           value={urlA}
-          onChange={(e) => setUrlA(e.target.value)}
+          onChange={setUrlA}
+          onPick={(v) => setUrlA(v)}
         />
-        <input
-          className="rounded-full border border-gray-300 px-4 py-2 focus:border-yt-red focus:outline-none dark:border-yt-border dark:bg-yt-dark-2"
+        <AutocompleteInput
+          type="channel"
           placeholder="Channel B — https://www.youtube.com/@channelname"
           value={urlB}
-          onChange={(e) => setUrlB(e.target.value)}
+          onChange={setUrlB}
+          onPick={(v) => setUrlB(v)}
         />
       </div>
       <button
-        onClick={compare}
+        onClick={() => compare()}
         disabled={loading || urlA.trim().length < 2 || urlB.trim().length < 2}
         className="mt-3 rounded-full bg-yt-red px-5 py-2 font-medium text-white hover:bg-yt-red-dark disabled:opacity-50"
       >
         {loading ? t("compare.comparing") : t("compare.compare")}
       </button>
+
+      {!result && !loading && (
+        <div className="mt-4">
+          <p className="text-xs text-gray-400">Try one of these:</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {SUGGESTIONS.map(([a, b]) => (
+              <button
+                key={`${a}-${b}`}
+                onClick={() => compare(a, b)}
+                className="rounded-full border px-3 py-1 text-xs text-gray-600 hover:bg-gray-50 dark:border-yt-border dark:text-gray-400 dark:hover:bg-yt-dark-3"
+              >
+                {a.replace(/^https?:\/\/(www\.)?youtube\.com\/@?/, "@")} vs {b.replace(/^https?:\/\/(www\.)?youtube\.com\/@?/, "@")}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
@@ -115,12 +155,7 @@ export default function ComparePage() {
           <div className="grid grid-cols-2 gap-3">
             {[result.a, result.b].map((s) => (
               <div key={s.channelId} className="flex items-center gap-3 rounded-yt border border-gray-200 p-4 dark:border-yt-border">
-                {s.channelThumbnail && (
-                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-yt-dark-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={s.channelThumbnail} alt="" className="h-full w-full object-cover" />
-                  </div>
-                )}
+                <ChannelAvatar src={s.channelThumbnail} name={s.channelTitle} size={48} />
                 <p className="min-w-0 truncate text-sm font-semibold">{s.channelTitle}</p>
               </div>
             ))}
@@ -138,7 +173,12 @@ export default function ComparePage() {
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.label} className="border-b dark:border-yt-border">
-                    <td className="py-2 text-gray-500 dark:text-gray-400">{row.label}</td>
+                    <td className="py-2 text-gray-500 dark:text-gray-400">
+                      <span className="inline-flex items-center gap-1">
+                        {row.label}
+                        {row.tooltip && <InfoTooltip text={row.tooltip} />}
+                      </span>
+                    </td>
                     <td className="py-2 font-medium">{row.format(result.a)}</td>
                     <td className="py-2 font-medium">{row.format(result.b)}</td>
                   </tr>

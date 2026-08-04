@@ -1,9 +1,14 @@
 import { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
+import { isProductionDeployment } from "@/lib/env";
 
 const BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // No point listing URLs for search engines on a deployment robots.ts already
+  // blocks entirely.
+  if (!isProductionDeployment()) return [];
+
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${BASE_URL}/`, changeFrequency: "weekly", priority: 1 },
     { url: `${BASE_URL}/pricing`, changeFrequency: "weekly", priority: 0.9 },
